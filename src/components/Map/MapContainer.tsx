@@ -156,11 +156,14 @@ export function MapContainer() {
   }, [waterLevel]);
 
   return (
-    <div
-      ref={mapContainer}
-      className="w-full h-full"
-      id="map"
-      style={{ position: "relative" }}
-    />
+    <div className="w-full h-full relative">
+      <div
+        ref={mapContainer}
+        className="w-full h-full"
+        id="map"
+        style={{ position: "relative" }}
+      />
+      <ElevationTooltip tooltip={tooltip} />
+    </div>
   );
 }

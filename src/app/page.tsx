@@ -1,5 +1,6 @@
 import { MapContainer } from "@/components/Map/MapContainer";
 import { WaterLevelSlider } from "@/components/ui/WaterLevelSlider";
+import { UserButton } from "@clerk/nextjs";
 
 export default function Home() {
   return (
@@ -12,8 +13,8 @@ export default function Home() {
         <WaterLevelSlider />
       </div>
 
-      {/* Header with App Title */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Header with App Title and User Controls */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-4">
         <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
           <h1 className="text-lg font-bold text-gray-900">
             San Francisco Sea Level Rise
@@ -21,6 +22,15 @@ export default function Home() {
           <p className="text-sm text-gray-600">
             Interactive flood visualization tool
           </p>
+        </div>
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "w-8 h-8",
+              },
+            }}
+          />
         </div>
       </div>
 

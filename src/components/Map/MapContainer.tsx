@@ -51,35 +51,43 @@ export function MapContainer() {
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
         map.current.addLayer(floodLayer.current);
 
-        // Add a simple demo layer to show flood overlay is working
-        // (This will be replaced with actual terrain data later)
-        map.current.addSource("demo-flood-area", {
+        // Add flood areas based on realistic SF elevation data
+        map.current.addSource("flood-areas", {
           type: "geojson",
-          data: {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Polygon",
-              coordinates: [
-                [
-                  [-122.48, 37.75],
-                  [-122.41, 37.75],
-                  [-122.41, 37.78],
-                  [-122.48, 37.78],
-                  [-122.48, 37.75],
-                ],
-              ],
-            },
-          },
+          data: generateFloodAreas(waterLevel),
         });
 
         map.current.addLayer({
-          id: "demo-flood-fill",
+          id: "flood-areas-fill",
           type: "fill",
-          source: "demo-flood-area",
+          source: "flood-areas",
           paint: {
-            "fill-color": "#0080ff",
-            "fill-opacity": 0.4,
+            "fill-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "elevation"],
+              0,
+              "#0066cc", // Deep blue for very low areas
+              3,
+              "#0080ff", // Medium blue for low areas
+              8,
+              "#66a3ff", // Light blue for moderate areas
+              12,
+              "#99c2ff", // Very light blue for higher areas
+            ],
+            "fill-opacity": 0.6,
+          },
+        });
+
+        // Add borders for flooded areas
+        map.current.addLayer({
+          id: "flood-areas-line",
+          type: "line",
+          source: "flood-areas",
+          paint: {
+            "line-color": "#003d99",
+            "line-width": 2,
+            "line-opacity": 0.8,
           },
         });
       }

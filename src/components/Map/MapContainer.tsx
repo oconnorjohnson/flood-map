@@ -48,6 +48,7 @@ export function MapContainer() {
           type: "geojson",
           data: {
             type: "Feature",
+            properties: {},
             geometry: {
               type: "Polygon",
               coordinates: [

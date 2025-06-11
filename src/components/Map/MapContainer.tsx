@@ -135,15 +135,12 @@ export function MapContainer() {
       // Trigger a repaint
       map.current.triggerRepaint();
 
-      // For demo purposes, also update the simple flood area opacity
-      if (map.current.getLayer("demo-flood-fill")) {
-        const opacity =
-          waterLevel > 0 ? Math.min(0.8, 0.2 + waterLevel * 0.1) : 0;
-        map.current.setPaintProperty(
-          "demo-flood-fill",
-          "fill-opacity",
-          opacity
-        );
+      // Update the flood areas data based on new water level
+      if (map.current.getSource("flood-areas")) {
+        const source = map.current.getSource(
+          "flood-areas"
+        ) as mapboxgl.GeoJSONSource;
+        source.setData(generateFloodAreas(waterLevel));
       }
     }
   }, [waterLevel]);

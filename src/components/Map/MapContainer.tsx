@@ -35,6 +35,46 @@ export function MapContainer() {
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
+    // Initialize flood overlay layer
+    map.current.on("style.load", () => {
+      if (map.current) {
+        // Create and add flood overlay layer
+        floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
+        map.current.addLayer(floodLayer.current);
+
+        // Add a simple demo layer to show flood overlay is working
+        // (This will be replaced with actual terrain data later)
+        map.current.addSource("demo-flood-area", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-122.48, 37.75],
+                  [-122.41, 37.75],
+                  [-122.41, 37.78],
+                  [-122.48, 37.78],
+                  [-122.48, 37.75],
+                ],
+              ],
+            },
+          },
+        });
+
+        map.current.addLayer({
+          id: "demo-flood-fill",
+          type: "fill",
+          source: "demo-flood-area",
+          paint: {
+            "fill-color": "#0080ff",
+            "fill-opacity": 0.4,
+          },
+        });
+      }
+    });
+
     // Track user interactions to prevent infinite loops
     map.current.on("movestart", () => {
       isUserInteracting.current = true;

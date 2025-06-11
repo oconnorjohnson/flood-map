@@ -102,37 +102,10 @@ export class FloodOverlayLayer implements mapboxgl.CustomLayerInterface {
   }
 
   render(gl: WebGLRenderingContext, matrix: number[]) {
-    if (!this.program || !this.buffer) return;
-
-    gl.useProgram(this.program);
-
-    // Set uniforms
-    const waterLevelLocation = gl.getUniformLocation(
-      this.program,
-      "u_waterLevel"
-    );
-    const resolutionLocation = gl.getUniformLocation(
-      this.program,
-      "u_resolution"
-    );
-
-    gl.uniform1f(waterLevelLocation, this.waterLevel);
-    gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
-
-    // Set vertex attributes
-    const positionLocation = gl.getAttribLocation(this.program, "a_position");
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-    gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-    // Enable blending for transparency
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    // Draw
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    gl.disable(gl.BLEND);
+    // Temporarily disable the custom WebGL layer since it's covering the entire map
+    // We're using GeoJSON polygons for flood visualization instead
+    // This will be re-enabled when we have proper terrain tiles
+    return;
   }
 
   onRemove() {

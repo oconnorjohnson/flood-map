@@ -13,8 +13,8 @@ export default function Home() {
         <WaterLevelSlider />
       </div>
 
-      {/* Header with App Title and User Controls */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-4">
+      {/* Header with App Title */}
+      <div className="absolute top-4 right-4 z-10">
         <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
           <h1 className="text-lg font-bold text-gray-900">
             San Francisco Sea Level Rise
@@ -23,6 +23,10 @@ export default function Home() {
             Interactive flood visualization tool
           </p>
         </div>
+      </div>
+
+      {/* User Controls - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-10">
         <div className="bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
           <UserButton
             appearance={{

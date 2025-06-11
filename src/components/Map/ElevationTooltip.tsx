@@ -13,6 +13,7 @@ interface TooltipData {
 
 interface ElevationTooltipProps {
   tooltip: TooltipData | null;
+  waterLevel: number;
 }
 
 export function ElevationTooltip({ tooltip }: ElevationTooltipProps) {

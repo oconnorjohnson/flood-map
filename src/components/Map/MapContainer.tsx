@@ -14,7 +14,6 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const isUserInteracting = useRef(false);
   const floodLayer = useRef<FloodOverlayLayer | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
@@ -54,9 +53,9 @@ export function MapContainer() {
     // Initialize flood overlay layer
     map.current.on("style.load", () => {
       if (map.current) {
-        // Create and add flood overlay layer
+        // Create flood overlay layer (disabled for now to prevent blue overlay)
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
-        map.current.addLayer(floodLayer.current);
+        // map.current.addLayer(floodLayer.current); // Commented out to prevent blue overlay
 
         // Add flood areas based on realistic SF elevation data
         map.current.addSource("flood-areas", {
@@ -103,18 +102,18 @@ export function MapContainer() {
       }
     });
 
-    // Track user interactions to prevent infinite loops
-    map.current.on("movestart", () => {
-      isUserInteracting.current = true;
-    });
-
-    // Update store when map view changes (only from user interaction)
+    // Update store when map view changes (with throttling to prevent loops)
+    let updateTimeout: NodeJS.Timeout;
     map.current.on("moveend", () => {
-      if (map.current && isUserInteracting.current) {
-        const center = map.current.getCenter();
-        const zoom = map.current.getZoom();
-        setMapView([center.lng, center.lat], zoom);
-        isUserInteracting.current = false;
+      if (map.current) {
+        clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          if (map.current) {
+            const center = map.current.getCenter();
+            const zoom = map.current.getZoom();
+            setMapView([center.lng, center.lat], zoom);
+          }
+        }, 100); // Throttle updates to prevent infinite loops
       }
     });
 
@@ -127,30 +126,25 @@ export function MapContainer() {
     };
   }, []);
 
-  // Update map view when store changes (external updates only)
-  useEffect(() => {
-    if (map.current && !isUserInteracting.current) {
-      map.current.flyTo({
-        center: mapCenter,
-        zoom: mapZoom,
-        duration: 1000,
-      });
-    }
-  }, [mapCenter, mapZoom]);
+  // Note: Removed automatic map view updates to prevent interaction conflicts
+  // The map view will only update from user interactions now
 
-  // Update flood layer when water level changes
+  // Update flood areas when water level changes
   useEffect(() => {
-    if (floodLayer.current && map.current) {
-      floodLayer.current.setWaterLevel(waterLevel);
-      // Trigger a repaint
-      map.current.triggerRepaint();
-
+    if (map.current) {
       // Update the flood areas data based on new water level
       if (map.current.getSource("flood-areas")) {
+        const floodData = generateFloodAreas(waterLevel);
+        console.log(
+          "Updating flood areas for water level:",
+          waterLevel,
+          "Features:",
+          floodData.features.length
+        );
         const source = map.current.getSource(
           "flood-areas"
         ) as mapboxgl.GeoJSONSource;
-        source.setData(generateFloodAreas(waterLevel));
+        source.setData(floodData);
       }
     }
   }, [waterLevel]);

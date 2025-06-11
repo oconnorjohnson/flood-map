@@ -97,6 +97,9 @@ export function MapContainer() {
             "line-opacity": 0.8,
           },
         });
+
+        // Attach tooltip after map is fully loaded
+        attachTooltip();
       }
     });
 

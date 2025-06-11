@@ -30,7 +30,7 @@ export const useStore = create<AppState>()((set) => ({
 
   // Actions
   setWaterLevel: (level) =>
-    set({ waterLevel: Math.max(-10, Math.min(30, level)) }),
+    set({ waterLevel: Math.max(0, Math.min(200, level)) }),
   setMapView: (center, zoom) => set({ mapCenter: center, mapZoom: zoom }),
   setSelectedPreset: (preset) => set({ selectedPreset: preset }),
   setIsExporting: (exporting) => set({ isExporting: exporting }),

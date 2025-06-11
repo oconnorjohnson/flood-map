@@ -22,6 +22,12 @@ export function MapContainer() {
   const waterLevel = useStore((state) => state.waterLevel);
   const setMapView = useStore((state) => state.setMapView);
 
+  // Initialize tooltip functionality
+  const { tooltip, attachTooltip } = useElevationTooltip(
+    map.current,
+    waterLevel
+  );
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return; // Initialize map only once
 

@@ -13,9 +13,11 @@ export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const isUserInteracting = useRef(false);
+  const floodLayer = useRef<FloodOverlayLayer | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
+  const waterLevel = useStore((state) => state.waterLevel);
   const setMapView = useStore((state) => state.setMapView);
 
   useEffect(() => {

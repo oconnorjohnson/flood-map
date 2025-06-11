@@ -111,5 +111,25 @@ export function MapContainer() {
     }
   }, [mapCenter, mapZoom]);
 
+  // Update flood layer when water level changes
+  useEffect(() => {
+    if (floodLayer.current && map.current) {
+      floodLayer.current.setWaterLevel(waterLevel);
+      // Trigger a repaint
+      map.current.triggerRepaint();
+
+      // For demo purposes, also update the simple flood area opacity
+      if (map.current.getLayer("demo-flood-fill")) {
+        const opacity =
+          waterLevel > 0 ? Math.min(0.8, 0.2 + waterLevel * 0.1) : 0;
+        map.current.setPaintProperty(
+          "demo-flood-fill",
+          "fill-opacity",
+          opacity
+        );
+      }
+    }
+  }, [waterLevel]);
+
   return <div ref={mapContainer} className="w-full h-full" id="map" />;
 }

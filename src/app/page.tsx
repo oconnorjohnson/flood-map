@@ -1,5 +1,5 @@
 import { MapContainer } from "@/components/Map/MapContainer";
-import { WaterLevelSlider } from "@/components/UI/WaterLevelSlider";
+import { WaterLevelSlider } from "@/components/ui/WaterLevelSlider";
 
 export default function Home() {
   return (

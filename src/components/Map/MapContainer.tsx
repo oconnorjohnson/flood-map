@@ -30,6 +30,14 @@ export function MapContainer() {
       center: mapCenter,
       zoom: mapZoom,
       antialias: true, // Better rendering quality
+      // Ensure interactions are enabled
+      interactive: true,
+      dragPan: true,
+      dragRotate: true,
+      scrollZoom: true,
+      touchZoomRotate: true,
+      doubleClickZoom: true,
+      keyboard: true,
     });
 
     // Add navigation controls
@@ -131,5 +139,12 @@ export function MapContainer() {
     }
   }, [waterLevel]);
 
-  return <div ref={mapContainer} className="w-full h-full" id="map" />;
+  return (
+    <div
+      ref={mapContainer}
+      className="w-full h-full"
+      id="map"
+      style={{ position: "relative" }}
+    />
+  );
 }

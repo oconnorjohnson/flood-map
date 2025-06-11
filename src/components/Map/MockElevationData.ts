@@ -79,8 +79,9 @@ export function generateFloodAreas(
 ): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
 
-  // Define areas that would flood at different water levels
+  // Define areas that would flood at different water levels (0-200m range)
   const floodAreas = [
+    // First to flood (0-5m) - Current low-lying areas
     {
       name: "Mission Bay",
       maxElevation: 3,
@@ -107,6 +108,8 @@ export function generateFloodAreas(
         ],
       ],
     },
+
+    // Moderate flooding (5-15m) - Near-term severe scenarios
     {
       name: "SOMA Low Areas",
       maxElevation: 8,
@@ -130,6 +133,131 @@ export function generateFloodAreas(
           [-122.3994, 37.7849],
           [-122.4094, 37.7849],
           [-122.4094, 37.7949],
+        ],
+      ],
+    },
+    {
+      name: "Bayview District",
+      maxElevation: 15,
+      coordinates: [
+        [
+          [-122.3974, 37.7319],
+          [-122.3774, 37.7319],
+          [-122.3774, 37.7219],
+          [-122.3974, 37.7219],
+          [-122.3974, 37.7319],
+        ],
+      ],
+    },
+
+    // Major flooding (15-30m) - Catastrophic scenarios
+    {
+      name: "Sunset District (Lower)",
+      maxElevation: 18,
+      coordinates: [
+        [
+          [-122.4774, 37.7519],
+          [-122.4574, 37.7519],
+          [-122.4574, 37.7319],
+          [-122.4774, 37.7319],
+          [-122.4774, 37.7519],
+        ],
+      ],
+    },
+    {
+      name: "Castro/Mission Valley",
+      maxElevation: 25,
+      coordinates: [
+        [
+          [-122.4394, 37.7669],
+          [-122.4194, 37.7669],
+          [-122.4194, 37.7569],
+          [-122.4394, 37.7569],
+          [-122.4394, 37.7669],
+        ],
+      ],
+    },
+    {
+      name: "Richmond District (Lower)",
+      maxElevation: 30,
+      coordinates: [
+        [
+          [-122.4774, 37.7919],
+          [-122.4574, 37.7919],
+          [-122.4574, 37.7719],
+          [-122.4774, 37.7719],
+          [-122.4774, 37.7919],
+        ],
+      ],
+    },
+
+    // Extreme flooding (30-60m) - Ice sheet collapse scenarios
+    {
+      name: "Pacific Heights (Lower)",
+      maxElevation: 45,
+      coordinates: [
+        [
+          [-122.4444, 37.7999],
+          [-122.4244, 37.7999],
+          [-122.4244, 37.7849],
+          [-122.4444, 37.7849],
+          [-122.4444, 37.7999],
+        ],
+      ],
+    },
+    {
+      name: "Cole Valley/Haight",
+      maxElevation: 50,
+      coordinates: [
+        [
+          [-122.4574, 37.7719],
+          [-122.4374, 37.7719],
+          [-122.4374, 37.7619],
+          [-122.4574, 37.7619],
+          [-122.4574, 37.7719],
+        ],
+      ],
+    },
+
+    // Massive flooding (60-100m) - Theoretical scenarios
+    {
+      name: "Nob Hill",
+      maxElevation: 85,
+      coordinates: [
+        [
+          [-122.4294, 37.7969],
+          [-122.4094, 37.7969],
+          [-122.4094, 37.7869],
+          [-122.4294, 37.7869],
+          [-122.4294, 37.7969],
+        ],
+      ],
+    },
+    {
+      name: "Russian Hill",
+      maxElevation: 90,
+      coordinates: [
+        [
+          [-122.4294, 37.8069],
+          [-122.4094, 37.8069],
+          [-122.4094, 37.7969],
+          [-122.4294, 37.7969],
+          [-122.4294, 37.8069],
+        ],
+      ],
+    },
+
+    // Extreme scenarios (100m+) - Only highest peaks remain
+    {
+      name: "Most of SF (except peaks)",
+      maxElevation: 150,
+      coordinates: [
+        [
+          [-122.52, 37.83],
+          [-122.35, 37.83],
+          [-122.35, 37.7],
+          [-122.52, 37.7],
+          [-122.52, 37.83],
         ],
       ],
     },

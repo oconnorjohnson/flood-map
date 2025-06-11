@@ -16,7 +16,10 @@ interface ElevationTooltipProps {
   waterLevel: number;
 }
 
-export function ElevationTooltip({ tooltip }: ElevationTooltipProps) {
+export function ElevationTooltip({
+  tooltip,
+  waterLevel,
+}: ElevationTooltipProps) {
   if (!tooltip) return null;
 
   const getFloodStatus = (elevation: number, waterLevel: number): string => {

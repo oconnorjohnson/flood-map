@@ -2,12 +2,16 @@
 
 import { useCallback, useMemo } from "react";
 import { useStore } from "@/lib/store";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function WaterLevelSlider() {
   const waterLevel = useStore((state) => state.waterLevel);
   const setWaterLevel = useStore((state) => state.setWaterLevel);
+
+  // Debounce the water level for display purposes (100ms delay)
+  const debouncedWaterLevel = useDebounce(waterLevel, 50);
 
   const handleValueChange = useCallback(
     (values: number[]) => {
@@ -44,13 +48,15 @@ export function WaterLevelSlider() {
       <CardContent className="space-y-4">
         <div className="text-center">
           <div
-            className={`text-2xl font-bold ${getWaterLevelColor(waterLevel)}`}
+            className={`text-2xl font-bold ${getWaterLevelColor(
+              debouncedWaterLevel
+            )}`}
           >
-            {waterLevel > 0 ? "+" : ""}
-            {waterLevel}m
+            {debouncedWaterLevel > 0 ? "+" : ""}
+            {debouncedWaterLevel}m
           </div>
           <div className="text-sm text-muted-foreground">
-            {getWaterLevelLabel(waterLevel)}
+            {getWaterLevelLabel(debouncedWaterLevel)}
           </div>
         </div>
 

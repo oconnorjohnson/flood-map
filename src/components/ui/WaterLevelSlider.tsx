@@ -37,7 +37,7 @@ export function WaterLevelSlider() {
   const sliderValue = useMemo(() => [waterLevel], [waterLevel]);
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-80 min-w-80">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">Water Level</CardTitle>
       </CardHeader>

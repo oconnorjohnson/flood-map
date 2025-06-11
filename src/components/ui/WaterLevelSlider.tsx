@@ -64,11 +64,6 @@ export function WaterLevelSlider() {
             className="w-full"
             defaultValue={[0]}
           />
-          {/* Debug info */}
-          <div className="text-xs text-gray-500 mt-1">
-            Debug: Current={waterLevel}, Max=200, Min=0, SliderValue=
-            {JSON.stringify(sliderValue)}
-          </div>
         </div>
 
         <div className="flex justify-between text-xs text-muted-foreground">
@@ -79,7 +74,7 @@ export function WaterLevelSlider() {
         </div>
 
         {/* Preset levels */}
-        <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-xs">
           <button
             onClick={() => setWaterLevel(0)}
             className="px-2 py-1 rounded border hover:bg-muted"
@@ -87,40 +82,10 @@ export function WaterLevelSlider() {
             2025
           </button>
           <button
-            onClick={() => setWaterLevel(2)}
+            onClick={() => setWaterLevel(63)}
             className="px-2 py-1 rounded border hover:bg-muted"
           >
-            2100
-          </button>
-          <button
-            onClick={() => setWaterLevel(10)}
-            className="px-2 py-1 rounded border hover:bg-muted"
-          >
-            Severe
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs mt-1">
-          <button
-            onClick={() => setWaterLevel(50)}
-            className="px-2 py-1 rounded border hover:bg-muted"
-          >
-            Ice Melt
-          </button>
-          <button
-            onClick={() => setWaterLevel(100)}
-            className="px-2 py-1 rounded border hover:bg-muted"
-          >
-            Extreme
-          </button>
-        </div>
-
-        {/* Test button for high values */}
-        <div className="grid grid-cols-1 gap-2 text-xs mt-1">
-          <button
-            onClick={() => setWaterLevel(150)}
-            className="px-2 py-1 rounded border hover:bg-muted bg-purple-100"
-          >
-            Test 150m
+            2101
           </button>
         </div>
       </CardContent>

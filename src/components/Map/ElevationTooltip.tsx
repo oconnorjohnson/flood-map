@@ -56,8 +56,10 @@ export function ElevationTooltip({
         <div className="text-xs text-gray-600">
           {tooltip.lat.toFixed(4)}°, {tooltip.lng.toFixed(4)}°
         </div>
-        <div className={`text-xs ${getStatusColor(tooltip.elevation, 0)}`}>
-          {getFloodStatus(tooltip.elevation, 0)}
+        <div
+          className={`text-xs ${getStatusColor(tooltip.elevation, waterLevel)}`}
+        >
+          {getFloodStatus(tooltip.elevation, waterLevel)}
         </div>
       </div>
     </div>

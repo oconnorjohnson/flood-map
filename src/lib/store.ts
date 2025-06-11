@@ -20,33 +20,20 @@ interface AppState {
   setLegendVisible: (visible: boolean) => void;
 }
 
-export const useStore = create<AppState>()(
-  persist(
-    (set) => ({
-      // Initial state
-      waterLevel: 0,
-      mapCenter: [-122.4194, 37.7749], // San Francisco coordinates
-      mapZoom: 12,
-      selectedPreset: null,
-      isExporting: false,
-      legendVisible: true,
+export const useStore = create<AppState>()((set) => ({
+  // Initial state
+  waterLevel: 0,
+  mapCenter: [-122.4194, 37.7749], // San Francisco coordinates
+  mapZoom: 12,
+  selectedPreset: null,
+  isExporting: false,
+  legendVisible: true,
 
-      // Actions
-      setWaterLevel: (level) =>
-        set({ waterLevel: Math.max(-10, Math.min(30, level)) }),
-      setMapView: (center, zoom) => set({ mapCenter: center, mapZoom: zoom }),
-      setSelectedPreset: (preset) => set({ selectedPreset: preset }),
-      setIsExporting: (exporting) => set({ isExporting: exporting }),
-      setLegendVisible: (visible) => set({ legendVisible: visible }),
-    }),
-    {
-      name: "flood-map-storage",
-      partialize: (state) => ({
-        waterLevel: state.waterLevel,
-        mapCenter: state.mapCenter,
-        mapZoom: state.mapZoom,
-        legendVisible: state.legendVisible,
-      }),
-    }
-  )
-);
+  // Actions
+  setWaterLevel: (level) =>
+    set({ waterLevel: Math.max(-10, Math.min(30, level)) }),
+  setMapView: (center, zoom) => set({ mapCenter: center, mapZoom: zoom }),
+  setSelectedPreset: (preset) => set({ selectedPreset: preset }),
+  setIsExporting: (exporting) => set({ isExporting: exporting }),
+  setLegendVisible: (visible) => set({ legendVisible: visible }),
+}));

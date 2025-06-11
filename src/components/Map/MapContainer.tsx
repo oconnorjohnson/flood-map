@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
+import { FloodOverlayLayer } from "./FloodOverlayLayer";
 
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -11,8 +12,11 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const isUserInteracting = useRef(false);
 
-  const { mapCenter, mapZoom, setMapView } = useStore();
+  const mapCenter = useStore((state) => state.mapCenter);
+  const mapZoom = useStore((state) => state.mapZoom);
+  const setMapView = useStore((state) => state.setMapView);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return; // Initialize map only once
@@ -29,12 +33,18 @@ export function MapContainer() {
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-    // Update store when map view changes
+    // Track user interactions to prevent infinite loops
+    map.current.on("movestart", () => {
+      isUserInteracting.current = true;
+    });
+
+    // Update store when map view changes (only from user interaction)
     map.current.on("moveend", () => {
-      if (map.current) {
+      if (map.current && isUserInteracting.current) {
         const center = map.current.getCenter();
         const zoom = map.current.getZoom();
         setMapView([center.lng, center.lat], zoom);
+        isUserInteracting.current = false;
       }
     });
 
@@ -47,9 +57,9 @@ export function MapContainer() {
     };
   }, []);
 
-  // Update map view when store changes (external updates)
+  // Update map view when store changes (external updates only)
   useEffect(() => {
-    if (map.current) {
+    if (map.current && !isUserInteracting.current) {
       map.current.flyTo({
         center: mapCenter,
         zoom: mapZoom,

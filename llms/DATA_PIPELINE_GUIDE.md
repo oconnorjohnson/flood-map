@@ -6,16 +6,9 @@ This guide provides step-by-step instructions for implementing the DEM (Digital 
 
 ## Pipeline Architecture
 
-```mermaid
-graph LR
-    A[USGS LAZ Files] --> B[PDAL Convert]
-    B --> C[LAS Point Cloud]
-    C --> D[GDAL Rasterize]
-    D --> E[GeoTIFF DEM]
-    E --> F[Clip & Reproject]
-    F --> G[Generate Tiles]
-    G --> H[Terrain-RGB PNGs]
-    H --> I[Optimize & Deploy]
+```
+USGS LAZ Files → PDAL Convert → LAS Point Cloud → GDAL Rasterize →
+GeoTIFF DEM → Clip & Reproject → Generate Tiles → Terrain-RGB PNGs → Deploy
 ```
 
 ## Step 1: Download Infrastructure
@@ -29,7 +22,6 @@ graph LR
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
-const { pipeline } = require("stream/promises");
 const ProgressBar = require("progress");
 
 const USGS_BASE_URL =

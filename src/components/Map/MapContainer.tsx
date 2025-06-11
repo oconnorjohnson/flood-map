@@ -163,7 +163,7 @@ export function MapContainer() {
         id="map"
         style={{ position: "relative" }}
       />
-      <ElevationTooltip tooltip={tooltip} />
+      <ElevationTooltip tooltip={tooltip} waterLevel={waterLevel} />
     </div>
   );
 }

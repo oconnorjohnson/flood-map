@@ -28,6 +28,9 @@ export function MapContainer() {
     waterLevel
   );
 
+  // Initialize building tooltip
+  const { buildingData } = useBuildingTooltip(map.current, waterLevel);
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return; // Initialize map only once
 

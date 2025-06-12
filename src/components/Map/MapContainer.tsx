@@ -134,9 +134,9 @@ export function MapContainer() {
           },
         });
 
-        // Create flood overlay layer (disabled for now to prevent blue overlay)
+        // Create flood overlay layer for terrain-aware water rendering
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
-        // map.current.addLayer(floodLayer.current); // Commented out to prevent blue overlay
+        // TODO: Re-enable when WebGL overlay is fixed to work with terrain
 
         // Add water surface for realistic flood visualization
         map.current.addSource("water-surface", {

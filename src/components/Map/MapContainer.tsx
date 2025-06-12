@@ -239,10 +239,7 @@ export function MapContainer() {
   const setMapView = useStore((state) => state.setMapView);
 
   // Initialize tooltip functionality
-  const { tooltip, attachTooltip } = useElevationTooltip(
-    map.current,
-    waterLevel
-  );
+  const { tooltip, attachTooltip } = useElevationTooltip(map.current);
 
   // Initialize building tooltip
   const { buildingData } = useBuildingTooltip(map.current, waterLevel);
@@ -400,7 +397,7 @@ export function MapContainer() {
                   source: "composite",
                   sourceLayer: "building",
                   id: hoveredBuildingId,
-                } as any,
+                } as mapboxgl.FeatureIdentifier,
                 { hover: false }
               );
             }
@@ -410,7 +407,7 @@ export function MapContainer() {
                 source: "composite",
                 sourceLayer: "building",
                 id: hoveredBuildingId,
-              } as any,
+              } as mapboxgl.FeatureIdentifier,
               { hover: true }
             );
           }
@@ -423,7 +420,7 @@ export function MapContainer() {
                 source: "composite",
                 sourceLayer: "building",
                 id: hoveredBuildingId,
-              } as any,
+              } as mapboxgl.FeatureIdentifier,
               { hover: false }
             );
           }
@@ -470,7 +467,7 @@ export function MapContainer() {
         map.current = null;
       }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update flood water layer when water level changes
   useEffect(() => {

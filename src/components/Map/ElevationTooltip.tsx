@@ -67,10 +67,7 @@ export function ElevationTooltip({
 }
 
 // Hook for managing tooltip state
-export function useElevationTooltip(
-  map: mapboxgl.Map | null,
-  waterLevel: number
-) {
+export function useElevationTooltip(map: mapboxgl.Map | null) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
   const handleMouseMove = useCallback(

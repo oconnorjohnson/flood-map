@@ -206,47 +206,6 @@ export function MapContainer() {
           },
         });
 
-        // Add building hover effects
-        let hoveredBuildingId: string | number | undefined = undefined;
-
-        map.current.on("mousemove", "3d-buildings", (e) => {
-          if (e.features && e.features.length > 0) {
-            if (hoveredBuildingId !== undefined) {
-              map.current?.setFeatureState(
-                {
-                  source: "composite",
-                  sourceLayer: "building",
-                  id: hoveredBuildingId,
-                } as any,
-                { hover: false }
-              );
-            }
-            hoveredBuildingId = e.features[0].id;
-            map.current?.setFeatureState(
-              {
-                source: "composite",
-                sourceLayer: "building",
-                id: hoveredBuildingId,
-              } as any,
-              { hover: true }
-            );
-          }
-        });
-
-        map.current.on("mouseleave", "3d-buildings", () => {
-          if (hoveredBuildingId !== undefined) {
-            map.current?.setFeatureState(
-              {
-                source: "composite",
-                sourceLayer: "building",
-                id: hoveredBuildingId,
-              } as any,
-              { hover: false }
-            );
-          }
-          hoveredBuildingId = undefined;
-        });
-
         // Change cursor on hover
         map.current.on("mouseenter", "3d-buildings", () => {
           if (map.current) {

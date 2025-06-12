@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
@@ -10,9 +10,226 @@ import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
+// Generate flood areas based on water level
+// This creates multiple polygons representing areas that would actually flood
+const generateFloodAreas = (waterLevel: number): GeoJSON.FeatureCollection => {
+  const features: GeoJSON.Feature[] = [];
+
+  if (waterLevel <= 0) {
+    return { type: "FeatureCollection", features };
+  }
+
+  // Ocean and bay entry points - these are always flooded if water level > 0
+  const waterBodies = [
+    // Pacific Ocean (west coast)
+    {
+      name: "Pacific Ocean",
+      coordinates: [
+        [
+          [-122.52, 37.9],
+          [-122.52, 37.65],
+          [-122.48, 37.65],
+          [-122.48, 37.9],
+          [-122.52, 37.9],
+        ],
+      ],
+    },
+    // San Francisco Bay (east)
+    {
+      name: "San Francisco Bay",
+      coordinates: [
+        [
+          [-122.35, 37.9],
+          [-122.3, 37.9],
+          [-122.3, 37.65],
+          [-122.35, 37.65],
+          [-122.35, 37.9],
+        ],
+      ],
+    },
+    // Golden Gate (north)
+    {
+      name: "Golden Gate",
+      coordinates: [
+        [
+          [-122.5, 37.84],
+          [-122.4, 37.84],
+          [-122.4, 37.81],
+          [-122.5, 37.81],
+          [-122.5, 37.84],
+        ],
+      ],
+    },
+  ];
+
+  // Add water bodies as base flood areas
+  for (const waterBody of waterBodies) {
+    features.push({
+      type: "Feature",
+      properties: {
+        name: waterBody.name,
+        elevation: 0,
+        waterDepth: waterLevel,
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: waterBody.coordinates,
+      },
+    });
+  }
+
+  // Low-lying areas that flood at different water levels
+  // These are connected to water sources and flood progressively
+  const floodZones = [
+    // Areas that flood at 1-5m (very low elevation, directly connected to water)
+    {
+      minWaterLevel: 1,
+      areas: [
+        {
+          name: "Mission Bay",
+          coordinates: [
+            [
+              [-122.395, 37.775],
+              [-122.385, 37.775],
+              [-122.385, 37.765],
+              [-122.395, 37.765],
+              [-122.395, 37.775],
+            ],
+          ],
+        },
+        {
+          name: "Embarcadero",
+          coordinates: [
+            [
+              [-122.4, 37.8],
+              [-122.385, 37.8],
+              [-122.385, 37.79],
+              [-122.4, 37.79],
+              [-122.4, 37.8],
+            ],
+          ],
+        },
+      ],
+    },
+    // Areas that flood at 5-10m
+    {
+      minWaterLevel: 5,
+      areas: [
+        {
+          name: "SOMA",
+          coordinates: [
+            [
+              [-122.41, 37.785],
+              [-122.395, 37.785],
+              [-122.395, 37.775],
+              [-122.41, 37.775],
+              [-122.41, 37.785],
+            ],
+          ],
+        },
+        {
+          name: "Marina District",
+          coordinates: [
+            [
+              [-122.445, 37.805],
+              [-122.43, 37.805],
+              [-122.43, 37.8],
+              [-122.445, 37.8],
+              [-122.445, 37.805],
+            ],
+          ],
+        },
+      ],
+    },
+    // Areas that flood at 10-20m
+    {
+      minWaterLevel: 10,
+      areas: [
+        {
+          name: "Financial District",
+          coordinates: [
+            [
+              [-122.405, 37.795],
+              [-122.395, 37.795],
+              [-122.395, 37.79],
+              [-122.405, 37.79],
+              [-122.405, 37.795],
+            ],
+          ],
+        },
+        {
+          name: "Fisherman's Wharf",
+          coordinates: [
+            [
+              [-122.42, 37.81],
+              [-122.41, 37.81],
+              [-122.41, 37.805],
+              [-122.42, 37.805],
+              [-122.42, 37.81],
+            ],
+          ],
+        },
+      ],
+    },
+    // Areas that flood at 20-50m
+    {
+      minWaterLevel: 20,
+      areas: [
+        {
+          name: "Mission District Lower",
+          coordinates: [
+            [
+              [-122.42, 37.765],
+              [-122.41, 37.765],
+              [-122.41, 37.755],
+              [-122.42, 37.755],
+              [-122.42, 37.765],
+            ],
+          ],
+        },
+        {
+          name: "Sunset District Coast",
+          coordinates: [
+            [
+              [-122.51, 37.76],
+              [-122.5, 37.76],
+              [-122.5, 37.75],
+              [-122.51, 37.75],
+              [-122.51, 37.76],
+            ],
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Add flood zones based on water level
+  for (const zone of floodZones) {
+    if (waterLevel >= zone.minWaterLevel) {
+      for (const area of zone.areas) {
+        features.push({
+          type: "Feature",
+          properties: {
+            name: area.name,
+            elevation: zone.minWaterLevel,
+            waterDepth: waterLevel - zone.minWaterLevel,
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: area.coordinates,
+          },
+        });
+      }
+    }
+  }
+
+  return { type: "FeatureCollection", features };
+};
+
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -83,59 +300,53 @@ export function MapContainer() {
           url: "mapbox://mapbox.mapbox-terrain-v2",
         });
 
-        // Create flood visualization using fill-extrusion based on elevation
-        // This creates a 3D water surface at the specified water level
+        // Add flood areas source
+        map.current.addSource("flood-areas", {
+          type: "geojson",
+          data: generateFloodAreas(waterLevel),
+        });
+
+        // Add flood visualization as 3D extrusions
         map.current.addLayer({
           id: "flood-3d",
           type: "fill-extrusion",
-          source: {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  properties: {},
-                  geometry: {
-                    type: "Polygon",
-                    coordinates: [
-                      [
-                        [-122.55, 37.65], // Southwest (extended south)
-                        [-122.3, 37.65], // Southeast (extended south and east)
-                        [-122.3, 37.9], // Northeast (extended north and east)
-                        [-122.55, 37.9], // Northwest (extended north)
-                        [-122.55, 37.65], // Close
-                      ],
-                    ],
-                  },
-                },
-              ],
-            },
-          },
+          source: "flood-areas",
           paint: {
-            // Set the base of the water at sea level (0m)
+            // Base is at ground level (0m)
             "fill-extrusion-base": 0,
-            // Set the height to the current water level
+            // Height is the water level
             "fill-extrusion-height": waterLevel,
-            // Water color with transparency
+            // Color based on water depth
             "fill-extrusion-color": [
               "interpolate",
               ["linear"],
-              waterLevel,
+              ["get", "waterDepth"],
               0,
-              "transparent",
-              1,
-              "rgba(135, 206, 235, 0.8)", // Light blue at 1m
+              "rgba(135, 206, 235, 0.7)", // Light blue for shallow
+              5,
+              "rgba(70, 130, 180, 0.7)", // Steel blue
               10,
-              "rgba(70, 130, 180, 0.8)", // Steel blue at 10m
+              "rgba(30, 144, 255, 0.7)", // Dodger blue
+              20,
+              "rgba(25, 25, 112, 0.7)", // Midnight blue
               50,
-              "rgba(25, 25, 112, 0.8)", // Midnight blue at 50m
+              "rgba(0, 0, 139, 0.7)", // Dark blue
               100,
-              "rgba(0, 0, 139, 0.8)", // Dark blue at 100m
-              200,
-              "rgba(0, 0, 80, 0.8)", // Navy at 200m
+              "rgba(0, 0, 80, 0.7)", // Navy
             ],
-            "fill-extrusion-opacity": 0.7,
+            "fill-extrusion-opacity": 0.8,
+          },
+        });
+
+        // Add flood area outlines for clarity
+        map.current.addLayer({
+          id: "flood-outline",
+          type: "line",
+          source: "flood-areas",
+          paint: {
+            "line-color": "#0066CC",
+            "line-width": 2,
+            "line-opacity": 0.8,
           },
         });
 
@@ -191,23 +402,17 @@ export function MapContainer() {
               ["boolean", ["feature-state", "hover"], false],
               "#ff6b6b", // Red when hovered
               [
-                "case",
-                // Check if building would be flooded
-                ["<", ["get", "min_height"], waterLevel],
-                "#4169E1", // Royal blue for flooded buildings
-                [
-                  "interpolate",
-                  ["linear"],
-                  ["get", "height"],
-                  0,
-                  "#e1e5e9", // Light gray for short buildings
-                  50,
-                  "#c8d6e5", // Medium gray for medium buildings
-                  100,
-                  "#8395a7", // Darker gray for tall buildings
-                  200,
-                  "#576574", // Dark gray for skyscrapers
-                ],
+                "interpolate",
+                ["linear"],
+                ["get", "height"],
+                0,
+                "#e1e5e9", // Light gray for short buildings
+                50,
+                "#c8d6e5", // Medium gray for medium buildings
+                100,
+                "#8395a7", // Darker gray for tall buildings
+                200,
+                "#576574", // Dark gray for skyscrapers
               ],
             ],
             "fill-extrusion-height": [
@@ -288,6 +493,7 @@ export function MapContainer() {
 
         // Attach tooltip after map is fully loaded
         attachTooltip();
+        setMapLoaded(true);
       }
     });
 
@@ -317,65 +523,27 @@ export function MapContainer() {
 
   // Update flood visualization when water level changes
   useEffect(() => {
-    if (map.current && map.current.getLayer("flood-3d")) {
+    if (map.current && mapLoaded && map.current.getSource("flood-areas")) {
+      // Update the flood areas data
+      const source = map.current.getSource(
+        "flood-areas"
+      ) as mapboxgl.GeoJSONSource;
+      source.setData(generateFloodAreas(waterLevel));
+
       // Update the 3D flood layer height
-      map.current.setPaintProperty(
-        "flood-3d",
-        "fill-extrusion-height",
-        waterLevel
-      );
-
-      // Update the flood color based on water level
-      map.current.setPaintProperty("flood-3d", "fill-extrusion-color", [
-        "interpolate",
-        ["linear"],
-        waterLevel,
-        0,
-        "transparent",
-        1,
-        "rgba(135, 206, 235, 0.8)",
-        10,
-        "rgba(70, 130, 180, 0.8)",
-        50,
-        "rgba(25, 25, 112, 0.8)",
-        100,
-        "rgba(0, 0, 139, 0.8)",
-        200,
-        "rgba(0, 0, 80, 0.8)",
-      ]);
-
-      // Update building colors to show flooded buildings
-      if (map.current.getLayer("3d-buildings")) {
-        map.current.setPaintProperty("3d-buildings", "fill-extrusion-color", [
-          "case",
-          ["boolean", ["feature-state", "hover"], false],
-          "#ff6b6b",
-          [
-            "case",
-            ["<", ["get", "min_height"], waterLevel],
-            "#4169E1", // Royal blue for flooded buildings
-            [
-              "interpolate",
-              ["linear"],
-              ["get", "height"],
-              0,
-              "#e1e5e9",
-              50,
-              "#c8d6e5",
-              100,
-              "#8395a7",
-              200,
-              "#576574",
-            ],
-          ],
-        ]);
+      if (map.current.getLayer("flood-3d")) {
+        map.current.setPaintProperty(
+          "flood-3d",
+          "fill-extrusion-height",
+          waterLevel
+        );
       }
 
       console.log(
         `Updated flood visualization for water level: ${waterLevel}m`
       );
     }
-  }, [waterLevel]);
+  }, [waterLevel, mapLoaded]);
 
   return (
     <div className="w-full h-full relative">

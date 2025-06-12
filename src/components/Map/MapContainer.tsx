@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
 import { FloodOverlayLayer } from "./FloodOverlayLayer";
 import { generateFloodAreas } from "./MockElevationData";
+import { generateWaterSurface } from "./WaterSurface";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
 
@@ -137,60 +138,32 @@ export function MapContainer() {
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
         // map.current.addLayer(floodLayer.current); // Commented out to prevent blue overlay
 
-        // Add flood areas based on realistic SF elevation data
-        map.current.addSource("flood-areas", {
+        // Add water surface for realistic flood visualization
+        map.current.addSource("water-surface", {
           type: "geojson",
-          data: generateFloodAreas(waterLevel),
+          data: generateWaterSurface(waterLevel),
         });
 
-        // Add 3D extruded flood areas for better 3D visualization
+        // Add water surface layer with proper transparency and water-like appearance
         map.current.addLayer({
-          id: "flood-areas-3d",
-          type: "fill-extrusion",
-          source: "flood-areas",
+          id: "water-surface",
+          type: "fill",
+          source: "water-surface",
           paint: {
-            "fill-extrusion-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "elevation"],
-              0,
-              "#0066cc", // Deep blue for very low areas
-              3,
-              "#0080ff", // Medium blue for low areas
-              8,
-              "#66a3ff", // Light blue for moderate areas
-              12,
-              "#99c2ff", // Very light blue for higher areas
-            ],
-            "fill-extrusion-height": [
-              "*",
-              ["get", "elevation"], // Use elevation property
-              0.5, // Scale factor for visual effect
-            ],
-            "fill-extrusion-opacity": 0.8,
+            "fill-color": "#0080ff", // Consistent water blue
+            "fill-opacity": 0.6, // Translucent water effect
           },
         });
 
-        // Also keep a flat version for areas at water level
+        // Add water surface border for better definition
         map.current.addLayer({
-          id: "flood-areas-fill",
-          type: "fill",
-          source: "flood-areas",
+          id: "water-surface-border",
+          type: "line",
+          source: "water-surface",
           paint: {
-            "fill-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "elevation"],
-              0,
-              "#0066cc", // Deep blue for very low areas
-              3,
-              "#0080ff", // Medium blue for low areas
-              8,
-              "#66a3ff", // Light blue for moderate areas
-              12,
-              "#99c2ff", // Very light blue for higher areas
-            ],
-            "fill-opacity": 0.3,
+            "line-color": "#0066cc",
+            "line-width": 1,
+            "line-opacity": 0.8,
           },
         });
 

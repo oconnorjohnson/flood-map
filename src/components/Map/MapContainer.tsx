@@ -80,6 +80,55 @@ export function MapContainer() {
           },
         });
 
+        // Add 3D buildings layer
+        map.current.addLayer({
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          filter: ["==", "extrude", "true"],
+          type: "fill-extrusion",
+          minzoom: 15,
+          paint: {
+            "fill-extrusion-color": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              "#ff6b6b", // Red when hovered
+              [
+                "interpolate",
+                ["linear"],
+                ["get", "height"],
+                0,
+                "#e1e5e9", // Light gray for short buildings
+                50,
+                "#c8d6e5", // Medium gray for medium buildings
+                100,
+                "#8395a7", // Darker gray for tall buildings
+                200,
+                "#576574", // Dark gray for skyscrapers
+              ],
+            ],
+            "fill-extrusion-height": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              15,
+              0,
+              15.05,
+              ["get", "height"],
+            ],
+            "fill-extrusion-base": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              15,
+              0,
+              15.05,
+              ["get", "min_height"],
+            ],
+            "fill-extrusion-opacity": 0.9,
+          },
+        });
+
         // Create flood overlay layer (disabled for now to prevent blue overlay)
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
         // map.current.addLayer(floodLayer.current); // Commented out to prevent blue overlay
@@ -151,6 +200,60 @@ export function MapContainer() {
             "line-width": 2,
             "line-opacity": 0.8,
           },
+        });
+
+        // Add building hover effects
+        let hoveredBuildingId: string | number | undefined = undefined;
+
+        map.current.on("mousemove", "3d-buildings", (e) => {
+          if (e.features && e.features.length > 0) {
+            if (hoveredBuildingId !== undefined) {
+              map.current?.setFeatureState(
+                {
+                  source: "composite",
+                  sourceLayer: "building",
+                  id: hoveredBuildingId,
+                } as any,
+                { hover: false }
+              );
+            }
+            hoveredBuildingId = e.features[0].id;
+            map.current?.setFeatureState(
+              {
+                source: "composite",
+                sourceLayer: "building",
+                id: hoveredBuildingId,
+              } as any,
+              { hover: true }
+            );
+          }
+        });
+
+        map.current.on("mouseleave", "3d-buildings", () => {
+          if (hoveredBuildingId !== undefined) {
+            map.current?.setFeatureState(
+              {
+                source: "composite",
+                sourceLayer: "building",
+                id: hoveredBuildingId,
+              } as any,
+              { hover: false }
+            );
+          }
+          hoveredBuildingId = undefined;
+        });
+
+        // Change cursor on hover
+        map.current.on("mouseenter", "3d-buildings", () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = "pointer";
+          }
+        });
+
+        map.current.on("mouseleave", "3d-buildings", () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = "";
+          }
         });
 
         // Attach tooltip after map is fully loaded

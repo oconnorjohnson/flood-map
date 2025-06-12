@@ -30,12 +30,14 @@ export function MapContainer() {
   useEffect(() => {
     if (!mapContainer.current || map.current) return; // Initialize map only once
 
-    // Create the map instance
+    // Create the map instance with 3D capabilities
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
+      style: "mapbox://styles/mapbox/satellite-streets-v12", // Better for 3D terrain
       center: mapCenter,
       zoom: mapZoom,
+      pitch: 45, // Add initial 3D tilt
+      bearing: 0, // Initial rotation
       antialias: true, // Better rendering quality
       // Ensure interactions are enabled
       interactive: true,
@@ -50,9 +52,34 @@ export function MapContainer() {
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-    // Initialize flood overlay layer
+    // Initialize 3D terrain and flood overlay layer
     map.current.on("style.load", () => {
       if (map.current) {
+        // Add Mapbox terrain source for 3D elevation
+        map.current.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.terrain-rgb",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+
+        // Enable 3D terrain
+        map.current.setTerrain({
+          source: "mapbox-dem",
+          exaggeration: 1.5, // Exaggerate elevation for better visualization
+        });
+
+        // Add sky layer for realistic 3D atmosphere
+        map.current.addLayer({
+          id: "sky",
+          type: "sky",
+          paint: {
+            "sky-type": "atmosphere",
+            "sky-atmosphere-sun": [0.0, 0.0],
+            "sky-atmosphere-sun-intensity": 15,
+          },
+        });
+
         // Create flood overlay layer (disabled for now to prevent blue overlay)
         floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
         // map.current.addLayer(floodLayer.current); // Commented out to prevent blue overlay
@@ -63,6 +90,35 @@ export function MapContainer() {
           data: generateFloodAreas(waterLevel),
         });
 
+        // Add 3D extruded flood areas for better 3D visualization
+        map.current.addLayer({
+          id: "flood-areas-3d",
+          type: "fill-extrusion",
+          source: "flood-areas",
+          paint: {
+            "fill-extrusion-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "elevation"],
+              0,
+              "#0066cc", // Deep blue for very low areas
+              3,
+              "#0080ff", // Medium blue for low areas
+              8,
+              "#66a3ff", // Light blue for moderate areas
+              12,
+              "#99c2ff", // Very light blue for higher areas
+            ],
+            "fill-extrusion-height": [
+              "*",
+              ["get", "elevation"], // Use elevation property
+              0.5, // Scale factor for visual effect
+            ],
+            "fill-extrusion-opacity": 0.8,
+          },
+        });
+
+        // Also keep a flat version for areas at water level
         map.current.addLayer({
           id: "flood-areas-fill",
           type: "fill",
@@ -81,7 +137,7 @@ export function MapContainer() {
               12,
               "#99c2ff", // Very light blue for higher areas
             ],
-            "fill-opacity": 0.6,
+            "fill-opacity": 0.3,
           },
         });
 

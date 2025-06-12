@@ -201,102 +201,123 @@ const FLOOD_AREAS = [
   {
     name: "Mission Bay",
     maxElevation: 3,
-    coordinates: [[
-      [-122.3950, 37.7700], // Northwest
-      [-122.3850, 37.7700], // Northeast  
-      [-122.3850, 37.7650], // Southeast
-      [-122.3950, 37.7650], // Southwest
-      [-122.3950, 37.7700], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.395, 37.77], // Northwest
+        [-122.385, 37.77], // Northeast
+        [-122.385, 37.765], // Southeast
+        [-122.395, 37.765], // Southwest
+        [-122.395, 37.77], // Close polygon
+      ],
+    ],
   },
-  
+
   // SOMA flats - low elevation (2-5m)
   {
     name: "SOMA Flats",
     maxElevation: 5,
-    coordinates: [[
-      [-122.4050, 37.7750], // Northwest
-      [-122.3900, 37.7750], // Northeast
-      [-122.3900, 37.7700], // Southeast
-      [-122.4050, 37.7700], // Southwest
-      [-122.4050, 37.7750], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.405, 37.775], // Northwest
+        [-122.39, 37.775], // Northeast
+        [-122.39, 37.77], // Southeast
+        [-122.405, 37.77], // Southwest
+        [-122.405, 37.775], // Close polygon
+      ],
+    ],
   },
 
   // Waterfront areas near Bay Bridge (1-4m)
   {
     name: "Bay Bridge Waterfront",
     maxElevation: 4,
-    coordinates: [[
-      [-122.3900, 37.7900], // Northwest
-      [-122.3850, 37.7900], // Northeast
-      [-122.3850, 37.7850], // Southeast
-      [-122.3900, 37.7850], // Southwest
-      [-122.3900, 37.7900], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.39, 37.79], // Northwest
+        [-122.385, 37.79], // Northeast
+        [-122.385, 37.785], // Southeast
+        [-122.39, 37.785], // Southwest
+        [-122.39, 37.79], // Close polygon
+      ],
+    ],
   },
 
   // Hunters Point area (3-8m)
   {
     name: "Hunters Point",
     maxElevation: 8,
-    coordinates: [[
-      [-122.3750, 37.7300], // Northwest
-      [-122.3650, 37.7300], // Northeast
-      [-122.3650, 37.7200], // Southeast
-      [-122.3750, 37.7200], // Southwest
-      [-122.3750, 37.7300], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.375, 37.73], // Northwest
+        [-122.365, 37.73], // Northeast
+        [-122.365, 37.72], // Southeast
+        [-122.375, 37.72], // Southwest
+        [-122.375, 37.73], // Close polygon
+      ],
+    ],
   },
 
   // Fisherman's Wharf area (2-6m)
   {
     name: "Fisherman's Wharf",
     maxElevation: 6,
-    coordinates: [[
-      [-122.4200, 37.8100], // Northwest
-      [-122.4050, 37.8100], // Northeast
-      [-122.4050, 37.8000], // Southeast
-      [-122.4200, 37.8000], // Southwest
-      [-122.4200, 37.8100], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.42, 37.81], // Northwest
+        [-122.405, 37.81], // Northeast
+        [-122.405, 37.8], // Southeast
+        [-122.42, 37.8], // Southwest
+        [-122.42, 37.81], // Close polygon
+      ],
+    ],
   },
 
   // Marina District - built on fill, vulnerable (5-10m)
   {
     name: "Marina District",
     maxElevation: 10,
-    coordinates: [[
-      [-122.4500, 37.8050], // Northwest
-      [-122.4300, 37.8050], // Northeast
-      [-122.4300, 37.7950], // Southeast
-      [-122.4500, 37.7950], // Southwest
-      [-122.4500, 37.8050], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.45, 37.805], // Northwest
+        [-122.43, 37.805], // Northeast
+        [-122.43, 37.795], // Southeast
+        [-122.45, 37.795], // Southwest
+        [-122.45, 37.805], // Close polygon
+      ],
+    ],
   },
 
   // Areas near Golden Gate Bridge approach (8-15m)
   {
     name: "Golden Gate Approach",
     maxElevation: 15,
-    coordinates: [[
-      [-122.4750, 37.8100], // Northwest
-      [-122.4650, 37.8100], // Northeast
-      [-122.4650, 37.8000], // Southeast
-      [-122.4750, 37.8000], // Southwest
-      [-122.4750, 37.8100], // Close polygon
-    ]],
+    coordinates: [
+      [
+        [-122.475, 37.81], // Northwest
+        [-122.465, 37.81], // Northeast
+        [-122.465, 37.8], // Southeast
+        [-122.475, 37.8], // Southwest
+        [-122.475, 37.81], // Close polygon
+      ],
+    ],
   },
 
   // Sunset District coastal areas (10-20m)
   {
     name: "Sunset Coastal",
     maxElevation: 20,
-    coordinates: [[
-      [-122.5100, 37.7600], // Northwest
-      [-122.5000, 37.7600], // Northeast
-      [-122.5000, 37.7400], // Southeast
-      [-122.5100, 37.7400], // Southwest
+    coordinates: [
+      [
+        [-122.51, 37.76], // Northwest
+        [-122.5, 37.76], // Northeast
+        [-122.5, 37.74], // Southeast
+        [-122.51, 37.74], // Southwest
+        [-122.51, 37.76], // Close polygon
+      ],
+    ],
+  },
+];
+
 // Generate realistic flood areas based on elevation contours
 export function generateRealisticFloodAreas(
   waterLevel: number

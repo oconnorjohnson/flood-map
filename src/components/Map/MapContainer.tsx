@@ -10,6 +10,225 @@ import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
+// Realistic San Francisco flood zones based on actual elevation data
+// These represent areas that would flood at different water levels
+const generateFloodZones = (waterLevel: number): GeoJSON.FeatureCollection => {
+  const features: GeoJSON.Feature[] = [];
+
+  // Define elevation contours for San Francisco (in meters above sea level)
+  const elevationZones = [
+    // Sea level and very low areas (0-2m) - Mission Bay, waterfront
+    {
+      maxElevation: 2,
+      areas: [
+        {
+          name: "Mission Bay",
+          coordinates: [
+            [-122.395, 37.77],
+            [-122.385, 37.77],
+            [-122.385, 37.765],
+            [-122.395, 37.765],
+            [-122.395, 37.77],
+          ],
+        },
+        {
+          name: "Bay Waterfront",
+          coordinates: [
+            [-122.39, 37.79],
+            [-122.385, 37.79],
+            [-122.385, 37.785],
+            [-122.39, 37.785],
+            [-122.39, 37.79],
+          ],
+        },
+      ],
+    },
+    // Low elevation (2-5m) - SOMA, parts of Mission Bay
+    {
+      maxElevation: 5,
+      areas: [
+        {
+          name: "SOMA Flats",
+          coordinates: [
+            [-122.405, 37.775],
+            [-122.39, 37.775],
+            [-122.39, 37.77],
+            [-122.405, 37.77],
+            [-122.405, 37.775],
+          ],
+        },
+        {
+          name: "Mission Creek",
+          coordinates: [
+            [-122.395, 37.768],
+            [-122.388, 37.768],
+            [-122.388, 37.762],
+            [-122.395, 37.762],
+            [-122.395, 37.768],
+          ],
+        },
+      ],
+    },
+    // Medium-low elevation (5-10m) - Marina District, parts of SOMA
+    {
+      maxElevation: 10,
+      areas: [
+        {
+          name: "Marina District",
+          coordinates: [
+            [-122.45, 37.805],
+            [-122.43, 37.805],
+            [-122.43, 37.795],
+            [-122.45, 37.795],
+            [-122.45, 37.805],
+          ],
+        },
+        {
+          name: "Fisherman's Wharf",
+          coordinates: [
+            [-122.42, 37.81],
+            [-122.405, 37.81],
+            [-122.405, 37.8],
+            [-122.42, 37.8],
+            [-122.42, 37.81],
+          ],
+        },
+      ],
+    },
+    // Medium elevation (10-20m) - Lower Mission, parts of Castro
+    {
+      maxElevation: 20,
+      areas: [
+        {
+          name: "Lower Mission",
+          coordinates: [
+            [-122.425, 37.765],
+            [-122.415, 37.765],
+            [-122.415, 37.755],
+            [-122.425, 37.755],
+            [-122.425, 37.765],
+          ],
+        },
+        {
+          name: "Potrero Hill Base",
+          coordinates: [
+            [-122.4, 37.76],
+            [-122.39, 37.76],
+            [-122.39, 37.75],
+            [-122.4, 37.75],
+            [-122.4, 37.76],
+          ],
+        },
+      ],
+    },
+    // Higher elevation (20-40m) - Castro, Lower Pacific Heights
+    {
+      maxElevation: 40,
+      areas: [
+        {
+          name: "Castro Lower",
+          coordinates: [
+            [-122.435, 37.765],
+            [-122.425, 37.765],
+            [-122.425, 37.755],
+            [-122.435, 37.755],
+            [-122.435, 37.765],
+          ],
+        },
+        {
+          name: "Lower Haight",
+          coordinates: [
+            [-122.445, 37.775],
+            [-122.435, 37.775],
+            [-122.435, 37.765],
+            [-122.445, 37.765],
+            [-122.445, 37.775],
+          ],
+        },
+      ],
+    },
+    // High elevation (40-80m) - Pacific Heights, parts of Nob Hill
+    {
+      maxElevation: 80,
+      areas: [
+        {
+          name: "Pacific Heights Lower",
+          coordinates: [
+            [-122.445, 37.795],
+            [-122.435, 37.795],
+            [-122.435, 37.785],
+            [-122.445, 37.785],
+            [-122.445, 37.795],
+          ],
+        },
+        {
+          name: "Western Addition",
+          coordinates: [
+            [-122.44, 37.785],
+            [-122.43, 37.785],
+            [-122.43, 37.775],
+            [-122.44, 37.775],
+            [-122.44, 37.785],
+          ],
+        },
+      ],
+    },
+    // Very high elevation (80-150m) - Nob Hill, Russian Hill lower areas
+    {
+      maxElevation: 150,
+      areas: [
+        {
+          name: "Nob Hill Lower",
+          coordinates: [
+            [-122.42, 37.795],
+            [-122.41, 37.795],
+            [-122.41, 37.785],
+            [-122.42, 37.785],
+            [-122.42, 37.795],
+          ],
+        },
+        {
+          name: "Russian Hill Lower",
+          coordinates: [
+            [-122.425, 37.805],
+            [-122.415, 37.805],
+            [-122.415, 37.795],
+            [-122.425, 37.795],
+            [-122.425, 37.805],
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Add flooded areas based on current water level
+  for (const zone of elevationZones) {
+    if (waterLevel > zone.maxElevation) {
+      for (const area of zone.areas) {
+        const depth = waterLevel - zone.maxElevation;
+        features.push({
+          type: "Feature",
+          properties: {
+            name: area.name,
+            elevation: zone.maxElevation,
+            waterDepth: depth,
+            waterLevel: waterLevel,
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [area.coordinates],
+          },
+        });
+      }
+    }
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+  };
+};
+
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -81,63 +300,43 @@ export function MapContainer() {
           },
         });
 
-        // Add flood water layer using terrain data and expressions
-        // This creates a realistic flood visualization based on actual elevation
+        // Add flood water source and layer
+        map.current.addSource("flood-data", {
+          type: "geojson",
+          data: generateFloodZones(waterLevel),
+        });
+
         map.current.addLayer({
           id: "flood-water",
           type: "fill",
-          source: {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: [
-                {
-                  type: "Feature",
-                  properties: {},
-                  geometry: {
-                    type: "Polygon",
-                    coordinates: [
-                      [
-                        // Cover the entire San Francisco area
-                        [-122.52, 37.7], // Southwest
-                        [-122.35, 37.7], // Southeast
-                        [-122.35, 37.84], // Northeast
-                        [-122.52, 37.84], // Northwest
-                        [-122.52, 37.7], // Close polygon
-                      ],
-                    ],
-                  },
-                },
-              ],
-            },
-          },
+          source: "flood-data",
           paint: {
-            // Use terrain elevation to determine flood areas
-            // This expression samples the terrain-rgb tiles to get elevation
-            "fill-opacity": [
-              "case",
-              // Only show water where terrain elevation is below water level
-              [
-                "<",
-                // Sample elevation from terrain-rgb tiles
-                ["get", "elevation", ["get", "terrain"]],
-                waterLevel,
-              ],
-              0.7, // Show water with 70% opacity
-              0.0, // Hide water above flood level
-            ],
             "fill-color": [
               "interpolate",
               ["linear"],
-              // Calculate water depth for color variation
-              ["-", waterLevel, ["get", "elevation", ["get", "terrain"]]],
+              ["get", "waterDepth"],
               0,
               "#87CEEB", // Light blue for shallow water
               5,
               "#4682B4", // Medium blue for medium depth
               10,
-              "#191970", // Dark blue for deep water
+              "#1E90FF", // Deeper blue
+              20,
+              "#0000CD", // Dark blue for very deep water
             ],
+            "fill-opacity": 0.7,
+          },
+        });
+
+        // Add flood water outline for better visibility
+        map.current.addLayer({
+          id: "flood-water-outline",
+          type: "line",
+          source: "flood-data",
+          paint: {
+            "line-color": "#0066CC",
+            "line-width": 2,
+            "line-opacity": 0.8,
           },
         });
 
@@ -275,27 +474,12 @@ export function MapContainer() {
 
   // Update flood water layer when water level changes
   useEffect(() => {
-    if (map.current && map.current.getLayer("flood-water")) {
-      // Update the paint properties to reflect new water level
-      map.current.setPaintProperty("flood-water", "fill-opacity", [
-        "case",
-        // Show water where elevation is below current water level
-        ["<", ["get", "elevation"], waterLevel],
-        0.7,
-        0.0,
-      ]);
-
-      map.current.setPaintProperty("flood-water", "fill-color", [
-        "interpolate",
-        ["linear"],
-        ["-", waterLevel, ["get", "elevation"]],
-        0,
-        "#87CEEB", // Light blue for shallow
-        5,
-        "#4682B4", // Medium blue
-        10,
-        "#191970", // Dark blue for deep
-      ]);
+    if (map.current && map.current.getSource("flood-data")) {
+      // Update the flood data with new water level
+      const source = map.current.getSource(
+        "flood-data"
+      ) as mapboxgl.GeoJSONSource;
+      source.setData(generateFloodZones(waterLevel));
 
       console.log(
         `Updated flood visualization for water level: ${waterLevel}m`

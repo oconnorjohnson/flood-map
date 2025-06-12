@@ -10,6 +10,9 @@ interface BuildingData {
   type?: string;
   x: number;
   y: number;
+  lat?: number;
+  lng?: number;
+  fetchedAddress?: string;
 }
 
 interface BuildingTooltipProps {
@@ -69,8 +72,18 @@ export function BuildingTooltip({
           {buildingData.name || "Building"}
         </div>
 
-        {buildingData.address && (
-          <div className="text-xs text-gray-600">📍 {buildingData.address}</div>
+        {buildingData.address || buildingData.fetchedAddress ? (
+          <div className="text-xs text-gray-600">
+            📍 {buildingData.address || buildingData.fetchedAddress}
+          </div>
+        ) : buildingData.lat && buildingData.lng ? (
+          <div className="text-xs text-gray-500">
+            📍 {buildingData.lat.toFixed(4)}, {buildingData.lng.toFixed(4)}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-500 italic">
+            📍 Location data unavailable
+          </div>
         )}
 
         {buildingData.height && (
@@ -120,13 +133,28 @@ export function useBuildingTooltip(
         const feature = features[0];
         const properties = feature.properties || {};
 
+        // Debug: Log available properties to see what data we have
+        console.log("Building properties:", properties);
+
+        // Get coordinates for potential reverse geocoding
+        const coords = e.lngLat;
+
         setBuildingData({
-          height: properties.height || properties.render_height,
-          address: properties.address || properties.street || "Address unknown",
-          name: properties.name || properties.building_name,
-          type: properties.type || properties.building_type || "Building",
+          height:
+            properties.height ||
+            properties.render_height ||
+            properties.min_height,
+          address: properties.address || properties.street || null,
+          name: properties.name || properties.building_name || properties.class,
+          type:
+            properties.type ||
+            properties.building_type ||
+            properties.class ||
+            "Building",
           x: e.point.x,
           y: e.point.y,
+          lat: coords.lat,
+          lng: coords.lng,
         });
       } else {
         setBuildingData(null);

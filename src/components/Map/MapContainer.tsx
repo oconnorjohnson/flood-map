@@ -265,22 +265,22 @@ export function MapContainer() {
   // Note: Removed automatic map view updates to prevent interaction conflicts
   // The map view will only update from user interactions now
 
-  // Update flood areas when water level changes
+  // Update water surface when water level changes
   useEffect(() => {
     if (map.current) {
-      // Update the flood areas data based on new water level
-      if (map.current.getSource("flood-areas")) {
-        const floodData = generateFloodAreas(waterLevel);
+      // Update the water surface data based on new water level
+      if (map.current.getSource("water-surface")) {
+        const waterData = generateWaterSurface(waterLevel);
         console.log(
-          "Updating flood areas for water level:",
+          "Updating water surface for water level:",
           waterLevel,
           "Features:",
-          floodData.features.length
+          waterData.features.length
         );
         const source = map.current.getSource(
-          "flood-areas"
+          "water-surface"
         ) as mapboxgl.GeoJSONSource;
-        source.setData(floodData);
+        source.setData(waterData);
       }
     }
   }, [waterLevel]);

@@ -7,8 +7,12 @@ import { useStore } from "@/lib/store";
 import { FloodOverlayLayer } from "./FloodOverlayLayer";
 import { generateFloodAreas } from "./MockElevationData";
 import { generateWaterSurface } from "./WaterSurface";
+import { generateElevationAwareWater } from "./RealisticFloodData";
+import { generateConnectedWaterSurface } from "./TopographicFloodModel";
+import { generateTerrainAwareWater } from "./TerrainAwareWater";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
+import { OceanRiseLayer } from "./OceanRiseLayer";
 
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -16,7 +20,7 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const floodLayer = useRef<FloodOverlayLayer | null>(null);
+  const floodLayer = useRef<OceanRiseLayer | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -134,50 +138,9 @@ export function MapContainer() {
           },
         });
 
-        // Create flood overlay layer for terrain-aware water rendering
-        floodLayer.current = new FloodOverlayLayer("flood-overlay", waterLevel);
-        // TODO: Re-enable when WebGL overlay is fixed to work with terrain
-
-        // Add water surface for realistic flood visualization
-        map.current.addSource("water-surface", {
-          type: "geojson",
-          data: generateWaterSurface(waterLevel),
-        });
-
-        // Add water surface layer with proper transparency and water-like appearance
-        map.current.addLayer({
-          id: "water-surface",
-          type: "fill",
-          source: "water-surface",
-          paint: {
-            "fill-color": "#0080ff", // Consistent water blue
-            "fill-opacity": 0.6, // Translucent water effect
-          },
-        });
-
-        // Add water surface border for better definition
-        map.current.addLayer({
-          id: "water-surface-border",
-          type: "line",
-          source: "water-surface",
-          paint: {
-            "line-color": "#0066cc",
-            "line-width": 1,
-            "line-opacity": 0.8,
-          },
-        });
-
-        // Add borders for flooded areas
-        map.current.addLayer({
-          id: "flood-areas-line",
-          type: "line",
-          source: "flood-areas",
-          paint: {
-            "line-color": "#003d99",
-            "line-width": 2,
-            "line-opacity": 0.8,
-          },
-        });
+        // Create ocean rise layer for proper elevation-based flood simulation
+        floodLayer.current = new OceanRiseLayer("ocean-rise", waterLevel);
+        map.current.addLayer(floodLayer.current);
 
         // Add building hover effects for red highlighting
         let hoveredBuildingId: string | number | undefined = undefined;
@@ -265,22 +228,13 @@ export function MapContainer() {
   // Note: Removed automatic map view updates to prevent interaction conflicts
   // The map view will only update from user interactions now
 
-  // Update water surface when water level changes
+  // Update ocean rise layer when water level changes
   useEffect(() => {
-    if (map.current) {
-      // Update the water surface data based on new water level
-      if (map.current.getSource("water-surface")) {
-        const waterData = generateWaterSurface(waterLevel);
-        console.log(
-          "Updating water surface for water level:",
-          waterLevel,
-          "Features:",
-          waterData.features.length
-        );
-        const source = map.current.getSource(
-          "water-surface"
-        ) as mapboxgl.GeoJSONSource;
-        source.setData(waterData);
+    if (floodLayer.current) {
+      floodLayer.current.setWaterLevel(waterLevel);
+      // Trigger map redraw to show updated water level
+      if (map.current) {
+        map.current.triggerRepaint();
       }
     }
   }, [waterLevel]);

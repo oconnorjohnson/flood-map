@@ -225,3 +225,21 @@ Starting implementation of proper sea level rise visualization based on WATER_SI
 - Water layer should now render at 61m elevation
 - Building tooltips show accurate flood information based on ground elevation
 - Using temporary elevation estimates until real DEM integration
+
+### Update - June 29, 2025 1:40 PM PDT
+
+**Issue: Water visualization still not showing**
+
+- The complex WebGL shader approach wasn't rendering
+- Created simpler WaterVisualization class using MapBox's built-in fill-extrusion layer
+- This approach uses MapBox's native 3D rendering capabilities
+- Creates a large polygon covering SF area at 61m elevation
+- Should be visible as a semi-transparent blue layer
+
+**Implementation:**
+
+- Created WaterVisualization.ts with simpler approach
+- Uses fill-extrusion layer type for 3D water surface
+- Fixed water level at 61m (200ft)
+- Blue color with 60% opacity
+- Added before buildings layer for proper rendering order

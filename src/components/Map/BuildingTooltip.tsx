@@ -179,9 +179,8 @@ export function useBuildingTooltip(
             const point = map.project(coords);
 
             // Query elevation from terrain-rgb tiles
-            const terrainFeatures = map.queryRenderedFeatures(point, {
-              layers: ["hillshade"], // If you have a hillshade layer
-            });
+            // Note: We can't directly query terrain elevation from MapBox GL JS
+            // The terrain-rgb data is not exposed through queryRenderedFeatures
 
             // For now, use a simple elevation estimate based on known SF topography
             // This is a placeholder - in production you'd query actual DEM data

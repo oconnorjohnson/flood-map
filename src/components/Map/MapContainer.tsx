@@ -6,7 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
-import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
+// import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
 import { WaterVisualization } from "./WaterVisualization";
 
 // Initialize Mapbox access token from environment
@@ -235,7 +235,7 @@ export function MapContainer() {
   const [mapStyle, setMapStyle] = useState<"satellite" | "standard">(
     "satellite"
   );
-  const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
+  // const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
   const waterVisualization = useRef<WaterVisualization | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);

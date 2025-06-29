@@ -8,6 +8,7 @@ import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
 // import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
 import { WaterVisualization } from "./WaterVisualization";
+import { TerrainAwareWater } from "./TerrainAwareWater";
 
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -237,6 +238,7 @@ export function MapContainer() {
   );
   // const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
   const waterVisualization = useRef<WaterVisualization | null>(null);
+  const terrainWater = useRef<TerrainAwareWater | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -310,7 +312,7 @@ export function MapContainer() {
           // Enable 3D terrain
           map.current.setTerrain({
             source: "mapbox-dem",
-            exaggeration: 1.5, // Exaggerate elevation for better visualization
+            exaggeration: 1.0, // Use real-world scale (no exaggeration)
           });
         }
 
@@ -343,13 +345,13 @@ export function MapContainer() {
               fixedWaterLevel
             );
 
-            // Use the simpler water visualization
-            waterVisualization.current = new WaterVisualization(
+            // Use terrain-aware water visualization
+            terrainWater.current = new TerrainAwareWater(
               map.current,
               fixedWaterLevel
             );
-            await waterVisualization.current.initialize();
-            console.log("Water visualization added to map");
+            await terrainWater.current.initialize();
+            console.log("Terrain-aware water visualization added to map");
           }
         }, 100);
 
@@ -537,8 +539,8 @@ export function MapContainer() {
   useEffect(() => {
     if (map.current && mapLoaded) {
       // Update the water visualization
-      if (waterVisualization.current) {
-        waterVisualization.current.setWaterLevel(waterLevel);
+      if (terrainWater.current) {
+        terrainWater.current.setWaterLevel(waterLevel);
       }
 
       // Update the old flood areas data (temporary)

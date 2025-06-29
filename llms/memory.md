@@ -243,3 +243,14 @@ Starting implementation of proper sea level rise visualization based on WATER_SI
 - Fixed water level at 61m (200ft)
 - Blue color with 60% opacity
 - Added before buildings layer for proper rendering order
+
+### Update - June 29, 2025 1:55 PM PDT
+
+**Issue: Water level appears too high compared to reference tool**
+
+- Water was covering more area than expected
+- Created TerrainAwareWater class that respects elevation zones
+- Defines specific elevation areas (sea level, low, medium elevation)
+- Only fills areas below the water level threshold
+- Changed terrain exaggeration from 1.5 to 1.0 for accurate representation
+- Applied 0.6x scale factor to match MapBox elevation units

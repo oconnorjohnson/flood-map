@@ -203,3 +203,25 @@ Starting implementation of proper sea level rise visualization based on WATER_SI
 5. Optimize shader performance for mobile devices
 6. Add water level animation transitions
 7. Implement building flood visualization overlay
+
+### Update - June 29, 2025 1:30 PM PDT
+
+**Issues Fixed:**
+
+1. **Authentication blocking app** - Added "/" to public routes in middleware.ts
+2. **Water visualization not rendering** - Fixed shader issues:
+   - Removed debug return statement blocking water rendering
+   - Updated coordinate transformation for Mapbox mercator projection
+   - Set fixed water level to 61m (200ft) as requested
+3. **Building flood calculations incorrect** - Updated BuildingTooltip:
+   - Added ground elevation to calculations
+   - Now considers terrain height when determining flood status
+   - Added placeholder elevation estimates for SF neighborhoods
+   - Shows "Above water level" for buildings on high ground
+   - Displays actual water depth at building location
+
+**Current Status:**
+
+- Water layer should now render at 61m elevation
+- Building tooltips show accurate flood information based on ground elevation
+- Using temporary elevation estimates until real DEM integration

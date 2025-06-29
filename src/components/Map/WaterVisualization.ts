@@ -72,7 +72,10 @@ export class WaterVisualization {
               100,
               "#0F4C81",
             ],
-            "fill-extrusion-height": this.waterLevel,
+            // MapBox uses a different scale for elevation
+            // We need to adjust the water level to match real-world meters
+            // The terrain exaggeration factor affects this as well
+            "fill-extrusion-height": this.waterLevel * 0.6, // Adjust scale factor
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 0.6,
           },
@@ -89,7 +92,11 @@ export class WaterVisualization {
 
     // Update the paint property
     if (this.map.getLayer(this.layerId)) {
-      this.map.setPaintProperty(this.layerId, "fill-extrusion-height", level);
+      this.map.setPaintProperty(
+        this.layerId,
+        "fill-extrusion-height",
+        level * 0.6
+      );
     }
   }
 

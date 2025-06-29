@@ -230,6 +230,9 @@ export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapStyle, setMapStyle] = useState<"satellite" | "standard">(
+    "satellite"
+  );
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -242,13 +245,32 @@ export function MapContainer() {
   // Initialize building tooltip
   const { buildingData } = useBuildingTooltip(map.current, waterLevel);
 
+  // Function to toggle map style
+  const toggleMapStyle = () => {
+    if (map.current) {
+      const newStyle = mapStyle === "satellite" ? "standard" : "satellite";
+      setMapStyle(newStyle);
+
+      if (newStyle === "standard") {
+        // Use MapBox Standard style with better 3D buildings
+        map.current.setStyle("mapbox://styles/mapbox/standard");
+      } else {
+        // Use satellite style
+        map.current.setStyle("mapbox://styles/mapbox/satellite-streets-v12");
+      }
+    }
+  };
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return; // Initialize map only once
 
     // Create the map instance with 3D capabilities
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style:
+        mapStyle === "standard"
+          ? "mapbox://styles/mapbox/standard"
+          : "mapbox://styles/mapbox/satellite-streets-v12",
       center: mapCenter,
       zoom: mapZoom,
       pitch: 45, // Add initial 3D tilt
@@ -269,30 +291,37 @@ export function MapContainer() {
     // Initialize 3D terrain and flood visualization
     map.current.on("style.load", () => {
       if (map.current) {
-        // Add Mapbox terrain source for 3D elevation
-        map.current.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.terrain-rgb",
-          tileSize: 512,
-          maxzoom: 14,
-        });
+        const currentStyle = map.current.getStyle();
+        const isStandardStyle = currentStyle.name === "Mapbox Standard";
 
-        // Enable 3D terrain
-        map.current.setTerrain({
-          source: "mapbox-dem",
-          exaggeration: 1.5, // Exaggerate elevation for better visualization
-        });
+        // Add Mapbox terrain source for 3D elevation (not needed for Standard style)
+        if (!isStandardStyle) {
+          map.current.addSource("mapbox-dem", {
+            type: "raster-dem",
+            url: "mapbox://mapbox.terrain-rgb",
+            tileSize: 512,
+            maxzoom: 14,
+          });
 
-        // Add sky layer for realistic 3D atmosphere
-        map.current.addLayer({
-          id: "sky",
-          type: "sky",
-          paint: {
-            "sky-type": "atmosphere",
-            "sky-atmosphere-sun": [0.0, 0.0],
-            "sky-atmosphere-sun-intensity": 15,
-          },
-        });
+          // Enable 3D terrain
+          map.current.setTerrain({
+            source: "mapbox-dem",
+            exaggeration: 1.5, // Exaggerate elevation for better visualization
+          });
+        }
+
+        // Add sky layer for realistic 3D atmosphere (not needed for Standard style which has it built-in)
+        if (!isStandardStyle) {
+          map.current.addLayer({
+            id: "sky",
+            type: "sky",
+            paint: {
+              "sky-type": "atmosphere",
+              "sky-atmosphere-sun": [0.0, 0.0],
+              "sky-atmosphere-sun-intensity": 15,
+            },
+          });
+        }
 
         // Add contour source from Mapbox Terrain tileset
         map.current.addSource("contours", {
@@ -388,54 +417,56 @@ export function MapContainer() {
           },
         });
 
-        // Add 3D buildings layer
-        map.current.addLayer({
-          id: "3d-buildings",
-          source: "composite",
-          "source-layer": "building",
-          filter: ["==", "extrude", "true"],
-          type: "fill-extrusion",
-          minzoom: 15,
-          paint: {
-            "fill-extrusion-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#ff6b6b", // Red when hovered
-              [
+        // Add 3D buildings layer (only for non-Standard styles)
+        if (!isStandardStyle) {
+          map.current.addLayer({
+            id: "3d-buildings",
+            source: "composite",
+            "source-layer": "building",
+            filter: ["==", "extrude", "true"],
+            type: "fill-extrusion",
+            minzoom: 15,
+            paint: {
+              "fill-extrusion-color": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                "#ff6b6b", // Red when hovered
+                [
+                  "interpolate",
+                  ["linear"],
+                  ["get", "height"],
+                  0,
+                  "#e1e5e9", // Light gray for short buildings
+                  50,
+                  "#c8d6e5", // Medium gray for medium buildings
+                  100,
+                  "#8395a7", // Darker gray for tall buildings
+                  200,
+                  "#576574", // Dark gray for skyscrapers
+                ],
+              ],
+              "fill-extrusion-height": [
                 "interpolate",
                 ["linear"],
-                ["get", "height"],
+                ["zoom"],
+                15,
                 0,
-                "#e1e5e9", // Light gray for short buildings
-                50,
-                "#c8d6e5", // Medium gray for medium buildings
-                100,
-                "#8395a7", // Darker gray for tall buildings
-                200,
-                "#576574", // Dark gray for skyscrapers
+                15.05,
+                ["get", "height"],
               ],
-            ],
-            "fill-extrusion-height": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              15,
-              0,
-              15.05,
-              ["get", "height"],
-            ],
-            "fill-extrusion-base": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              15,
-              0,
-              15.05,
-              ["get", "min_height"],
-            ],
-            "fill-extrusion-opacity": 0.9,
-          },
-        });
+              "fill-extrusion-base": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15,
+                0,
+                15.05,
+                ["get", "min_height"],
+              ],
+              "fill-extrusion-opacity": 0.9,
+            },
+          });
+        }
 
         // Add building hover effects
         let hoveredBuildingId: string | number | undefined = undefined;
@@ -546,14 +577,21 @@ export function MapContainer() {
   }, [waterLevel, mapLoaded]);
 
   return (
-    <div className="w-full h-full relative">
-      <div
-        ref={mapContainer}
-        className="w-full h-full"
-        id="map"
-        style={{ position: "relative" }}
-      />
-      <ElevationTooltip tooltip={tooltip} waterLevel={waterLevel} />
+    <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Style toggle button */}
+      <button
+        onClick={toggleMapStyle}
+        className="absolute top-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow z-10"
+        title="Toggle between satellite and standard map styles"
+      >
+        {mapStyle === "satellite" ? "🏙️ Standard View" : "🛰️ Satellite View"}
+      </button>
+
+      {mapLoaded && (
+        <ElevationTooltip tooltip={tooltip} waterLevel={waterLevel} />
+      )}
       <BuildingTooltip buildingData={buildingData} waterLevel={waterLevel} />
     </div>
   );

@@ -1,24 +1,23 @@
-# Accurate Water Simulation for MapBox GL JS: A Comprehensive Implementation Guide
+# Sea Level Rise Visualization for MapBox GL JS: Implementation Guide
 
 ## Executive Summary
 
-This document outlines a detailed approach for implementing physically accurate water simulation in MapBox GL JS, addressing the challenges of simulating realistic flood behavior that accounts for terrain elevation, building interactions, and dynamic water flow. The proposed solution combines multiple techniques to achieve both visual fidelity and computational efficiency.
+This document outlines a streamlined approach for implementing sea level rise visualization in MapBox GL JS, specifically designed for scenarios like visualizing 200 feet (~61 meters) of sea level rise. This approach focuses on accurate elevation-based water rendering without the complexity of dynamic flow simulation.
 
-## Current Limitations of Basic Flood Visualization
+## Simplified Approach for Sea Level Rise
 
-Our current implementation uses simple polygon-based flood areas that:
+Unlike dynamic flood simulation, sea level rise visualization can be implemented more efficiently by:
 
-- Don't account for actual terrain elevation
-- Ignore building volumes and barriers
-- Lack realistic water flow dynamics
-- Don't consider water accumulation and drainage
-- Provide static rather than dynamic visualization
+- Using static water level calculations based on terrain elevation
+- Eliminating complex physics simulations
+- Focusing on visual accuracy and performance
+- Providing immediate feedback as users adjust water levels
 
-## Proposed Solution Architecture
+## Core Implementation Strategy
 
-### 1. **Hybrid Rendering Approach**
+### 1. **Elevation-Based Water Rendering**
 
-Combine MapBox's native capabilities with custom WebGL layers for water simulation:
+The key insight is that for sea level rise, water will fill all areas below a certain elevation threshold:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -26,471 +25,399 @@ Combine MapBox's native capabilities with custom WebGL layers for water simulati
 ├─────────────────────────────────────────────┤
 │  Terrain Layer │ Buildings │ Infrastructure │
 ├─────────────────────────────────────────────┤
-│         Custom WebGL Water Layer            │
+│      Custom Water Rendering Layer           │
 │  ┌─────────────────────────────────────┐   │
-│  │   GPU-Based Water Simulation        │   │
-│  │   - Shallow Water Equations         │   │
-│  │   - Height Field Fluid Simulation   │   │
-│  │   - Particle-Based Effects          │   │
+│  │   Elevation-Based Water Surface     │   │
+│  │   - Height comparison               │   │
+│  │   - Realistic water shading         │   │
+│  │   - Building intersection           │   │
 │  └─────────────────────────────────────┘   │
 └─────────────────────────────────────────────┘
 ```
 
-### 2. **Core Components**
+### 2. **Implementation Components**
 
-#### A. Elevation-Based Water Flow System
+#### A. Custom Water Layer
 
-- **Data Requirements:**
+```javascript
+const seaLevelRiseLayer = {
+  id: "sea-level-rise",
+  type: "custom",
+  renderingMode: "3d",
 
-  - High-resolution Digital Elevation Model (DEM)
-  - Building footprints with height data
-  - Terrain roughness coefficients
-  - Storm drain locations and capacity
+  onAdd: function (map, gl) {
+    // Create shader program for water rendering
+    this.program = createShaderProgram(
+      gl,
+      vertexShaderSource,
+      fragmentShaderSource
+    );
 
-- **Implementation:**
-  ```javascript
-  // Custom water simulation layer
-  const waterSimulationLayer = {
-    id: "water-simulation",
-    type: "custom",
-    renderingMode: "3d",
+    // Get terrain elevation data
+    this.loadTerrainData(map);
 
-    onAdd: function (map, gl) {
-      // Initialize GPU compute shaders
-      this.initializeWaterSimulation(gl);
-      // Create height field texture from DEM
-      this.createHeightFieldTexture(gl);
-      // Initialize water state textures
-      this.initializeWaterState(gl);
-    },
+    // Create water mesh
+    this.createWaterMesh(gl);
+  },
 
-    render: function (gl, matrix) {
-      // Update water simulation
-      this.updateWaterPhysics(gl);
-      // Render water surface
-      this.renderWaterSurface(gl, matrix);
-    },
-  };
-  ```
+  render: function (gl, matrix) {
+    // Use current water level from state
+    const waterLevel = this.waterLevel; // e.g., 61 meters
 
-#### B. GPU-Accelerated Shallow Water Equations
+    // Render water surface at specified elevation
+    this.renderWaterSurface(gl, matrix, waterLevel);
+  },
+};
+```
 
-Implement 2D shallow water equations on the GPU using WebGL compute shaders:
+#### B. Vertex Shader for Water Surface
 
 ```glsl
-// Fragment shader for water height update
-uniform sampler2D u_heightField;    // Terrain elevation
-uniform sampler2D u_waterHeight;    // Current water height
-uniform sampler2D u_velocity;       // Water velocity field
-uniform float u_deltaTime;
-uniform float u_gravity;
+attribute vec2 a_position;
+uniform mat4 u_matrix;
+uniform float u_waterLevel;
+uniform sampler2D u_terrain;
+
+varying vec2 v_texCoord;
+varying float v_depth;
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
+  v_texCoord = a_position;
 
-  // Sample neighboring cells
-  float h_center = texture2D(u_waterHeight, uv).r;
-  float h_left   = texture2D(u_waterHeight, uv - vec2(1.0/u_resolution.x, 0)).r;
-  float h_right  = texture2D(u_waterHeight, uv + vec2(1.0/u_resolution.x, 0)).r;
-  float h_top    = texture2D(u_waterHeight, uv + vec2(0, 1.0/u_resolution.y)).r;
-  float h_bottom = texture2D(u_waterHeight, uv - vec2(0, 1.0/u_resolution.y)).r;
+  // Get terrain height at this position
+  float terrainHeight = texture2D(u_terrain, a_position).r;
 
-  // Calculate water flow based on height differences
-  vec2 velocity = texture2D(u_velocity, uv).xy;
+  // Calculate water depth
+  v_depth = u_waterLevel - terrainHeight;
 
-  // Apply shallow water equations
-  float dhdt = -(h_right - h_left) * velocity.x
-             - (h_top - h_bottom) * velocity.y;
+  // Position water surface at the specified level
+  vec3 position = vec3(a_position, u_waterLevel);
 
-  // Update water height
-  float newHeight = h_center + dhdt * u_deltaTime;
-
-  // Ensure water doesn't go below terrain
-  float terrainHeight = texture2D(u_heightField, uv).r;
-  newHeight = max(newHeight, terrainHeight);
-
-  gl_FragColor = vec4(newHeight, 0.0, 0.0, 1.0);
+  gl_Position = u_matrix * vec4(position, 1.0);
 }
 ```
 
-### 3. **Implementation Strategy**
+#### C. Fragment Shader for Realistic Water
 
-#### Phase 1: Data Preparation
+```glsl
+precision highp float;
 
-1. **Elevation Data Processing**
+uniform float u_waterLevel;
+uniform sampler2D u_terrain;
+uniform vec3 u_cameraPosition;
 
-   - Obtain high-resolution DEM (1-5m resolution recommended)
-   - Process building heights from OSM or city data
-   - Create combined elevation texture including buildings
-   - Generate terrain roughness map (Manning coefficients)
+varying vec2 v_texCoord;
+varying float v_depth;
 
-2. **Boundary Conditions**
-   - Define water sources (rain, river overflow, ocean surge)
-   - Map storm drain locations and capacities
-   - Identify impermeable surfaces (roads, buildings)
+void main() {
+  // Skip rendering where terrain is above water
+  float terrainHeight = texture2D(u_terrain, v_texCoord).r;
+  if (terrainHeight >= u_waterLevel) {
+    discard;
+  }
 
-#### Phase 2: Water Simulation Engine
+  // Calculate water color based on depth
+  vec3 shallowColor = vec3(0.4, 0.7, 0.9);
+  vec3 deepColor = vec3(0.1, 0.3, 0.6);
 
-1. **Height Field Fluid Simulation**
+  float depthFactor = smoothstep(0.0, 10.0, v_depth);
+  vec3 waterColor = mix(shallowColor, deepColor, depthFactor);
 
-   ```javascript
-   class WaterSimulation {
-     constructor(resolution, bounds) {
-       this.resolution = resolution;
-       this.bounds = bounds;
+  // Add transparency for shallow water
+  float alpha = smoothstep(0.0, 1.0, v_depth) * 0.9;
 
-       // Create framebuffers for ping-pong rendering
-       this.waterHeightTextures = [
-         this.createTexture(resolution),
-         this.createTexture(resolution),
-       ];
+  // Simple fresnel effect for realism
+  vec3 viewDir = normalize(u_cameraPosition - vec3(v_texCoord, u_waterLevel));
+  float fresnel = pow(1.0 - abs(dot(viewDir, vec3(0, 0, 1))), 2.0);
 
-       this.velocityTextures = [
-         this.createTexture(resolution),
-         this.createTexture(resolution),
-       ];
+  waterColor += vec3(0.1) * fresnel;
 
-       this.currentIndex = 0;
-     }
+  gl_FragColor = vec4(waterColor, alpha);
+}
+```
 
-     update(deltaTime) {
-       // Swap read/write textures
-       this.currentIndex = 1 - this.currentIndex;
+### 3. **Simplified Implementation Steps**
 
-       // Update water physics
-       this.updateWaterHeight(deltaTime);
-       this.updateVelocity(deltaTime);
-       this.applyBoundaryConditions();
-     }
-   }
-   ```
-
-2. **Building Interaction**
-
-   - Treat buildings as solid boundaries
-   - Implement water flow around obstacles
-   - Account for water accumulation in low areas
-   - Model water entry into buildings at ground level
-
-3. **Dynamic Water Sources**
-
-   ```javascript
-   addRainfall(intensity, area) {
-     // Add water based on rainfall intensity
-     // Account for surface permeability
-     // Distribute across affected cells
-   }
-
-   addPointSource(position, flowRate) {
-     // Add water from point sources (broken pipes, etc.)
-   }
-
-   addRiverOverflow(riverPath, waterLevel) {
-     // Model river overflow based on water level
-   }
-   ```
-
-#### Phase 3: Visual Rendering
-
-1. **Water Surface Rendering**
-
-   - Use screen-space reflections for realistic water
-   - Implement foam and turbulence effects
-   - Add transparency based on water depth
-   - Create wave displacement for flowing water
-
-2. **Depth Visualization**
-
-   ```glsl
-   // Fragment shader for water rendering
-   vec3 getWaterColor(float depth) {
-     // Shallow to deep water color gradient
-     vec3 shallowColor = vec3(0.4, 0.6, 0.8);
-     vec3 deepColor = vec3(0.1, 0.2, 0.4);
-
-     float t = smoothstep(0.0, 2.0, depth);
-     return mix(shallowColor, deepColor, t);
-   }
-   ```
-
-3. **Performance Optimization**
-   - Use adaptive resolution based on zoom level
-   - Implement LOD system for distant water
-   - Cache simulation results for replay
-   - Use temporal upsampling for smooth animation
-
-### 4. **Integration with MapBox**
-
-#### Custom Layer Implementation
+#### Step 1: Obtain Elevation Data
 
 ```javascript
-class WaterSimulationLayer {
-  constructor(options) {
-    this.id = "water-simulation";
-    this.type = "custom";
-    this.renderingMode = "3d";
+async function loadElevationData(bounds) {
+  // Option 1: Use MapBox Terrain-RGB tiles
+  const terrainSource = {
+    type: "raster-dem",
+    url: "mapbox://mapbox.terrain-rgb",
+    tileSize: 512,
+    maxzoom: 14,
+  };
 
-    this.simulation = new WaterSimulation(options.resolution, options.bounds);
+  // Option 2: Load custom DEM if available
+  // const dem = await loadDEMFile('path/to/dem.tiff');
+
+  return terrainSource;
+}
+```
+
+#### Step 2: Create Water Mesh
+
+```javascript
+function createWaterMesh(bounds, resolution = 256) {
+  const vertices = [];
+  const indices = [];
+
+  // Create grid of vertices covering the map bounds
+  for (let y = 0; y <= resolution; y++) {
+    for (let x = 0; x <= resolution; x++) {
+      const u = x / resolution;
+      const v = y / resolution;
+
+      // Map to geographic coordinates
+      const lng = bounds.west + (bounds.east - bounds.west) * u;
+      const lat = bounds.north + (bounds.south - bounds.north) * v;
+
+      vertices.push(lng, lat);
+    }
   }
 
-  onAdd(map, gl) {
+  // Create triangles
+  for (let y = 0; y < resolution; y++) {
+    for (let x = 0; x < resolution; x++) {
+      const topLeft = y * (resolution + 1) + x;
+      const topRight = topLeft + 1;
+      const bottomLeft = (y + 1) * (resolution + 1) + x;
+      const bottomRight = bottomLeft + 1;
+
+      indices.push(topLeft, bottomLeft, topRight);
+      indices.push(topRight, bottomLeft, bottomRight);
+    }
+  }
+
+  return { vertices, indices };
+}
+```
+
+#### Step 3: Efficient Rendering
+
+```javascript
+class SeaLevelRiseVisualization {
+  constructor(map) {
     this.map = map;
-    this.gl = gl;
-
-    // Load elevation data
-    this.loadElevationData();
-
-    // Initialize shaders
-    this.initializeShaders();
-
-    // Set up render targets
-    this.setupRenderTargets();
+    this.waterLevel = 0;
   }
 
-  render(gl, matrix) {
-    // Update simulation
-    this.simulation.update(1 / 60);
+  setWaterLevel(meters) {
+    this.waterLevel = meters;
+    this.updateVisualization();
+  }
 
-    // Render water surface
-    this.renderWater(matrix);
+  updateVisualization() {
+    // Update uniform in shader
+    if (this.program) {
+      const gl = this.gl;
+      gl.useProgram(this.program);
+      gl.uniform1f(this.waterLevelUniform, this.waterLevel);
+    }
 
-    // Trigger repaint for animation
+    // Trigger repaint
     this.map.triggerRepaint();
   }
 }
+```
 
-// Add to map
+### 4. **Building Intersection**
+
+For more accurate visualization, handle building intersections:
+
+```javascript
+function calculateBuildingFloodDepth(building, waterLevel) {
+  const groundElevation = building.properties.base_height || 0;
+  const buildingHeight = building.properties.height || 0;
+
+  if (waterLevel <= groundElevation) {
+    return { flooded: false };
+  }
+
+  const floodDepth = waterLevel - groundElevation;
+  const percentFlooded = Math.min(floodDepth / buildingHeight, 1.0);
+
+  return {
+    flooded: true,
+    depth: floodDepth,
+    percentFlooded: percentFlooded,
+    floorsAffected: Math.floor(floodDepth / 3.0), // Assuming 3m per floor
+  };
+}
+```
+
+### 5. **Performance Optimizations**
+
+#### A. Level of Detail (LOD)
+
+```javascript
+function getOptimalResolution(zoom) {
+  // Higher resolution for closer views
+  if (zoom > 15) return 512;
+  if (zoom > 12) return 256;
+  if (zoom > 10) return 128;
+  return 64;
+}
+```
+
+#### B. Frustum Culling
+
+```javascript
+function cullWaterTiles(tiles, camera) {
+  return tiles.filter((tile) => {
+    // Only render tiles visible in current view
+    return camera.frustum.intersectsBox(tile.bounds);
+  });
+}
+```
+
+#### C. Caching Elevation Data
+
+```javascript
+class ElevationCache {
+  constructor(maxSize = 100) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  getTileElevation(tileKey) {
+    if (this.cache.has(tileKey)) {
+      return this.cache.get(tileKey);
+    }
+
+    // Load and cache elevation data
+    const elevation = this.loadElevationTile(tileKey);
+    this.cache.set(tileKey, elevation);
+
+    // Evict old tiles if cache is full
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+
+    return elevation;
+  }
+}
+```
+
+### 6. **Integration Example**
+
+```javascript
+// Complete integration with MapBox
+mapboxgl.accessToken = "YOUR_TOKEN";
+
+const map = new mapboxgl.Map({
+  container: "map",
+  style: "mapbox://styles/mapbox/satellite-v9",
+  center: [-122.4194, 37.7749], // San Francisco
+  zoom: 12,
+  pitch: 45,
+  bearing: 0,
+});
+
 map.on("load", () => {
-  const waterLayer = new WaterSimulationLayer({
-    resolution: 512,
-    bounds: map.getBounds(),
+  // Add terrain for elevation
+  map.addSource("mapbox-dem", {
+    type: "raster-dem",
+    url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+    tileSize: 512,
+    maxzoom: 14,
   });
 
-  map.addLayer(waterLayer);
+  // Enable 3D terrain
+  map.setTerrain({ source: "mapbox-dem", exaggeration: 1.0 });
+
+  // Add sea level rise visualization
+  const seaLevelRise = new SeaLevelRiseVisualization(map);
+  map.addLayer(seaLevelRise.createLayer());
+
+  // Set water level to 61 meters (200 feet)
+  seaLevelRise.setWaterLevel(61);
+});
+
+// Add UI control
+const slider = document.getElementById("water-level-slider");
+slider.addEventListener("input", (e) => {
+  const meters = parseFloat(e.target.value);
+  seaLevelRise.setWaterLevel(meters);
+
+  // Update display
+  document.getElementById("water-level-display").textContent = `${meters}m / ${(
+    meters * 3.28084
+  ).toFixed(0)}ft`;
 });
 ```
 
-### 5. **Advanced Features**
+### 7. **Visual Enhancements**
 
-#### A. Multi-Resolution Simulation
+#### A. Wave Animation (Optional)
 
-- Use quadtree structure for adaptive resolution
-- Higher detail near viewer and areas of interest
-- Coarser simulation for distant regions
-
-#### B. Temporal Dynamics
-
-```javascript
-class TemporalFloodSimulation {
-  constructor() {
-    this.timeStep = 0;
-    this.rainfallSchedule = [];
-    this.drainageRates = new Map();
-  }
-
-  setRainfallPattern(pattern) {
-    // Define time-varying rainfall
-    this.rainfallSchedule = pattern;
-  }
-
-  updateDrainageCapacity(drainId, capacity) {
-    // Model storm drain overflow
-    this.drainageRates.set(drainId, capacity);
-  }
-
-  simulateTimeStep() {
-    // Apply current rainfall
-    const rainfall = this.getRainfallAtTime(this.timeStep);
-
-    // Update water levels
-    this.applyRainfall(rainfall);
-
-    // Process drainage
-    this.processDrainage();
-
-    // Advance time
-    this.timeStep++;
-  }
-}
+```glsl
+// Add subtle wave movement for realism
+float waveHeight = sin(u_time * 2.0 + v_texCoord.x * 10.0) * 0.1;
+position.z += waveHeight * smoothstep(0.0, 5.0, v_depth);
 ```
 
-#### C. Building Damage Visualization
+#### B. Shoreline Foam
 
-```javascript
-assessBuildingImpact(buildingId, waterLevel) {
-  const building = this.buildings.get(buildingId);
-
-  if (waterLevel > building.groundLevel) {
-    const floodDepth = waterLevel - building.groundLevel;
-    const affectedFloors = Math.floor(floodDepth / 3.0); // ~3m per floor
-
-    return {
-      flooded: true,
-      depth: floodDepth,
-      affectedFloors: affectedFloors,
-      estimatedDamage: this.calculateDamage(building, floodDepth)
-    };
-  }
-
-  return { flooded: false };
-}
+```glsl
+// Add foam effect at water edges
+float foamWidth = 2.0; // meters
+float foamIntensity = smoothstep(foamWidth, 0.0, v_depth);
+waterColor = mix(waterColor, vec3(0.9), foamIntensity * 0.5);
 ```
 
-### 6. **Performance Considerations**
+### 8. **Data Requirements (Simplified)**
 
-#### GPU Memory Management
+For sea level rise visualization, you only need:
 
-- Resolution vs. Accuracy tradeoff
-- Texture format optimization (16-bit vs 32-bit float)
-- Framebuffer pooling
+1. **Elevation Data**
 
-#### Simulation Stability
+   - MapBox Terrain-RGB (built-in, free)
+   - Or custom DEM for higher accuracy
 
-```javascript
-// Adaptive timestep for numerical stability
-calculateTimestep(maxVelocity, cellSize) {
-  const CFL = 0.5; // Courant-Friedrichs-Lewy condition
-  return CFL * cellSize / maxVelocity;
-}
-```
+2. **Building Heights** (optional but recommended)
+   - Available from MapBox building layer
+   - Or custom building data
 
-### 7. **Data Requirements**
+That's it! No need for:
 
-#### Essential Data
+- Drainage networks
+- Flow coefficients
+- Rainfall data
+- Soil permeability
 
-1. **Digital Elevation Model (DEM)**
+### 9. **Quick Implementation Timeline**
 
-   - Resolution: 1-5 meters
-   - Coverage: Entire simulation area
-   - Format: GeoTIFF or similar
+#### Week 1: Basic Water Rendering
 
-2. **Building Data**
+- Set up custom layer
+- Implement elevation-based water surface
+- Basic depth-based coloring
 
-   - Footprints with heights
-   - Ground floor elevations
-   - Building materials (for permeability)
+#### Week 2: Visual Polish & Optimization
 
-3. **Infrastructure Data**
+- Add transparency and fresnel effects
+- Implement LOD system
+- Add building intersection visualization
 
-   - Storm drain network
-   - Pump stations
-   - Levees and flood barriers
+### 10. **Advantages of This Approach**
 
-4. **Hydrological Parameters**
-   - Surface roughness coefficients
-   - Soil permeability rates
-   - Historical flood data for validation
-
-### 8. **Implementation Timeline**
-
-#### Week 1-2: Data Acquisition and Processing
-
-- Obtain DEM and building data
-- Process into GPU-compatible formats
-- Create elevation and roughness textures
-
-#### Week 3-4: Basic Water Simulation
-
-- Implement shallow water equations
-- Test with simple scenarios
-- Validate against known flood patterns
-
-#### Week 5-6: MapBox Integration
-
-- Create custom WebGL layer
-- Implement water rendering
-- Add user controls
-
-#### Week 7-8: Advanced Features
-
-- Building interactions
-- Temporal dynamics
-- Performance optimization
-
-#### Week 9-10: Testing and Refinement
-
-- Validate against historical floods
-- Performance profiling
-- User interface polish
-
-### 9. **Alternative Approaches**
-
-#### A. Particle-Based (SPH) Simulation
-
-- More accurate for complex flows
-- Higher computational cost
-- Better for small-scale detail
-
-#### B. Lattice Boltzmann Method
-
-- Good for complex boundary conditions
-- Naturally parallel
-- More complex implementation
-
-#### C. Hybrid Grid-Particle Methods
-
-- Combines efficiency of grids with particle detail
-- Best of both worlds
-- Most complex to implement
-
-### 10. **Validation and Testing**
-
-#### Test Scenarios
-
-1. **Dam Break Test**
-
-   - Classic benchmark for flood simulation
-   - Known analytical solutions
-
-2. **Urban Flooding**
-
-   - Historical flood events
-   - Compare with observed data
-
-3. **Rainfall Runoff**
-   - Various intensity patterns
-   - Drainage system capacity
-
-#### Metrics
-
-- Water depth accuracy (RMSE)
-- Flood extent comparison (F-score)
-- Arrival time accuracy
-- Computational performance (FPS)
-
-### 11. **Future Enhancements**
-
-1. **Machine Learning Integration**
-
-   - Predict flood patterns
-   - Optimize simulation parameters
-   - Real-time calibration
-
-2. **Multi-hazard Simulation**
-
-   - Combine with landslide models
-   - Debris flow simulation
-   - Contamination spread
-
-3. **Cloud Computing**
-   - Offload heavy computation
-   - Larger simulation domains
-   - Ensemble simulations
+1. **Simplicity**: No complex physics simulation required
+2. **Performance**: Runs smoothly even on modest hardware
+3. **Accuracy**: For sea level rise, this is physically accurate
+4. **Immediate Feedback**: Changes render instantly
+5. **Predictable**: No simulation instabilities or convergence issues
 
 ## Conclusion
 
-Implementing accurate water simulation in MapBox GL JS requires a multi-faceted approach combining:
+For visualizing sea level rise scenarios (like 200 feet of rise), this elevation-based approach provides:
 
-- GPU-accelerated physics simulation
-- High-resolution elevation data
-- Custom WebGL rendering
-- Careful performance optimization
+- Accurate representation of flooded areas
+- High performance
+- Simple implementation
+- Easy maintenance
 
-While complex, this approach provides:
-
-- Realistic flood visualization
-- Interactive exploration
-- Real-time performance
-- Cross-platform compatibility
-
-The key to success is balancing physical accuracy with computational efficiency, using appropriate simplifications while maintaining the essential dynamics of flood behavior.
+This method is ideal when you need to show "what areas would be underwater at X meters of sea level rise" without simulating how the water gets there.

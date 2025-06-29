@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
+import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
 
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
@@ -233,6 +234,7 @@ export function MapContainer() {
   const [mapStyle, setMapStyle] = useState<"satellite" | "standard">(
     "satellite"
   );
+  const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -329,54 +331,15 @@ export function MapContainer() {
           url: "mapbox://mapbox.mapbox-terrain-v2",
         });
 
-        // Add flood areas source
+        // Create and add the sea level rise layer
+        seaLevelRiseLayer.current = new SeaLevelRiseLayer(waterLevel);
+        map.current.addLayer(seaLevelRiseLayer.current);
+
+        // Keep the old flood areas for now as a fallback/comparison
+        // We can remove this once the new layer is working properly
         map.current.addSource("flood-areas", {
           type: "geojson",
           data: generateFloodAreas(waterLevel),
-        });
-
-        // Add flood visualization as 3D extrusions
-        map.current.addLayer({
-          id: "flood-3d",
-          type: "fill-extrusion",
-          source: "flood-areas",
-          paint: {
-            // Base is at ground level (0m)
-            "fill-extrusion-base": 0,
-            // Height is the water level
-            "fill-extrusion-height": waterLevel,
-            // Color based on water depth
-            "fill-extrusion-color": [
-              "interpolate",
-              ["linear"],
-              ["get", "waterDepth"],
-              0,
-              "rgba(135, 206, 235, 0.7)", // Light blue for shallow
-              5,
-              "rgba(70, 130, 180, 0.7)", // Steel blue
-              10,
-              "rgba(30, 144, 255, 0.7)", // Dodger blue
-              20,
-              "rgba(25, 25, 112, 0.7)", // Midnight blue
-              50,
-              "rgba(0, 0, 139, 0.7)", // Dark blue
-              100,
-              "rgba(0, 0, 80, 0.7)", // Navy
-            ],
-            "fill-extrusion-opacity": 0.8,
-          },
-        });
-
-        // Add flood area outlines for clarity
-        map.current.addLayer({
-          id: "flood-outline",
-          type: "line",
-          source: "flood-areas",
-          paint: {
-            "line-color": "#0066CC",
-            "line-width": 2,
-            "line-opacity": 0.8,
-          },
         });
 
         // Add contour lines for better elevation visualization
@@ -554,20 +517,19 @@ export function MapContainer() {
 
   // Update flood visualization when water level changes
   useEffect(() => {
-    if (map.current && mapLoaded && map.current.getSource("flood-areas")) {
-      // Update the flood areas data
-      const source = map.current.getSource(
-        "flood-areas"
-      ) as mapboxgl.GeoJSONSource;
-      source.setData(generateFloodAreas(waterLevel));
+    if (map.current && mapLoaded) {
+      // Update the sea level rise layer
+      if (seaLevelRiseLayer.current) {
+        seaLevelRiseLayer.current.setWaterLevel(waterLevel);
+        map.current.triggerRepaint();
+      }
 
-      // Update the 3D flood layer height
-      if (map.current.getLayer("flood-3d")) {
-        map.current.setPaintProperty(
-          "flood-3d",
-          "fill-extrusion-height",
-          waterLevel
-        );
+      // Update the old flood areas data (temporary)
+      if (map.current.getSource("flood-areas")) {
+        const source = map.current.getSource(
+          "flood-areas"
+        ) as mapboxgl.GeoJSONSource;
+        source.setData(generateFloodAreas(waterLevel));
       }
 
       console.log(

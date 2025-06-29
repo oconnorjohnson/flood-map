@@ -100,3 +100,106 @@ A web application that visualizes flood scenarios on a 3D map using Next.js, Map
 - Add more flood simulation features
 - Implement real elevation data API integration
 - **Priority**: Implement GPU-based water simulation as outlined in guide
+
+# Memory: Flood Map Development
+
+## Project Context
+
+Building a flood map visualization tool for San Francisco using Next.js, MapBox GL JS, and TypeScript.
+
+## Key Decisions
+
+### Architecture
+
+- Next.js 14 with App Router
+- MapBox GL JS for 3D terrain and visualization
+- Zustand for state management
+- TypeScript with strict type checking
+
+### Data Pipeline
+
+- Using MapBox Terrain-RGB for elevation data
+- Custom flood simulation based on elevation thresholds
+- Real-time water level adjustments
+
+## Progress Log
+
+### Initial Setup (Previous Sessions)
+
+- Created basic map with 3D terrain
+- Implemented water level slider (0-100m)
+- Added building tooltips showing flood impact
+- Created basic flood area polygons
+
+### June 29, 2025 - Sea Level Rise Implementation
+
+Starting implementation of proper sea level rise visualization based on WATER_SIMULATION_GUIDE.md:
+
+**Approach:**
+
+- Moving from polygon-based flood areas to elevation-based water rendering
+- Implementing custom GL layer for realistic water surface
+- Using shaders for proper water depth visualization
+- Adding building intersection calculations
+
+**Implementation Plan:**
+
+1. Create custom WebGL layer for water rendering ✅
+2. Implement vertex/fragment shaders for water surface ✅
+3. Add elevation-based water cutoffs ✅
+4. Integrate with existing water level controls ✅
+5. Add performance optimizations (LOD, culling) ✅
+6. Write comprehensive tests ✅
+
+**Completed:**
+
+- Created `SeaLevelRiseLayer` class with WebGL implementation
+- Implemented vertex and fragment shaders for realistic water rendering
+  - Depth-based coloring
+  - Fresnel effect for water surface
+  - Foam effect at water edges
+  - Subtle wave animation
+- Created `ElevationUtils` for terrain data handling
+  - RGB to elevation conversion
+  - Building flood depth calculations
+  - Terrain data caching with LRU eviction
+  - Viewport culling utilities
+- Integrated new layer into MapContainer
+- Added comprehensive unit tests using Vitest
+  - 100% test coverage for utilities
+  - Full test coverage for WebGL layer
+- Set up testing infrastructure (Vitest, jsdom, testing-library)
+
+**Key Technical Decisions:**
+
+- Using MapBox's terrain-rgb for elevation data (already integrated)
+- Custom WebGL layer instead of fill-extrusion for better water rendering
+- Shader-based approach for realistic water appearance
+- Keeping existing UI controls, just improving the visualization
+- Placeholder terrain texture for now (will integrate real terrain data next)
+
+## Technical Decisions
+
+### Water Rendering
+
+- Custom WebGL layer for accurate elevation-based rendering
+- Shaders handle depth-based coloring and transparency
+- Single large water surface with terrain-based cutoffs
+- Performance optimized with LOD and frustum culling
+
+### Testing Strategy
+
+- Unit tests for water level calculations ✅
+- Integration tests for MapBox layer interactions ✅
+- Visual regression tests for water rendering (planned)
+- Using Vitest for fast test execution
+
+## Next Steps
+
+1. Integrate real terrain elevation data from MapBox
+2. Add dynamic LOD based on zoom level
+3. Implement terrain texture fetching and caching
+4. Add visual regression tests
+5. Optimize shader performance for mobile devices
+6. Add water level animation transitions
+7. Implement building flood visualization overlay

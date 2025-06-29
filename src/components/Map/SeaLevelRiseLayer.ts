@@ -57,19 +57,13 @@ const fragmentShaderSource = `
   }
   
   void main() {
-    // For debugging: always show a blue semi-transparent overlay
-    gl_FragColor = vec4(0.0, 0.5, 1.0, 0.5);
-    return;
-    
     // Sample terrain height at this position
     // For now, use a simple elevation model (will integrate real terrain later)
     float terrainHeight = 0.0; // Sea level
     
     // Only render where water level is above terrain
-    if (u_waterLevel <= 0.0) {
-      // For debugging: show a red overlay when water level is 0
-      gl_FragColor = vec4(1.0, 0.0, 0.0, 0.3);
-      return;
+    if (u_waterLevel <= terrainHeight) {
+      discard;
     }
     
     // Calculate water depth

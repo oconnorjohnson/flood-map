@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
 import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
+import { WaterVisualization } from "./WaterVisualization";
 
 // Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";

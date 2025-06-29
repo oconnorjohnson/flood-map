@@ -13,6 +13,7 @@ interface BuildingData {
   lat?: number;
   lng?: number;
   fetchedAddress?: string;
+  groundElevation?: number;
 }
 
 interface BuildingTooltipProps {
@@ -28,11 +29,17 @@ export function BuildingTooltip({
 
   const getFloodStatus = (
     buildingHeight: number,
-    waterLevel: number
+    waterLevel: number,
+    groundElevation: number = 0
   ): string => {
     if (!buildingHeight) return "Height unknown";
 
-    const floorsFlooded = Math.floor(waterLevel / 3); // Assume 3m per floor
+    // Calculate actual flood depth considering ground elevation
+    const floodDepth = waterLevel - groundElevation;
+
+    if (floodDepth <= 0) return "Above water level";
+
+    const floorsFlooded = Math.floor(floodDepth / 3); // Assume 3m per floor
     const totalFloors = Math.floor(buildingHeight / 3);
 
     if (floorsFlooded <= 0) return "No flooding";
@@ -44,18 +51,23 @@ export function BuildingTooltip({
 
   const getStatusColor = (
     buildingHeight: number,
-    waterLevel: number
+    waterLevel: number,
+    groundElevation: number = 0
   ): string => {
     if (!buildingHeight) return "text-gray-500";
 
-    const floorsFlooded = Math.floor(waterLevel / 3);
+    const floodDepth = waterLevel - groundElevation;
+
+    if (floodDepth <= 0) return "text-green-600";
+
+    const floorsFlooded = Math.floor(floodDepth / 3);
     const totalFloors = Math.floor(buildingHeight / 3);
 
-    if (floorsFlooded <= 0) return "text-green-600";
     if (floorsFlooded >= totalFloors) return "text-red-600";
     if (floorsFlooded > totalFloors * 0.5) return "text-orange-600";
+    if (floorsFlooded > 0) return "text-yellow-600";
 
-    return "text-yellow-600";
+    return "text-green-600";
   };
 
   return (
@@ -93,6 +105,12 @@ export function BuildingTooltip({
           </div>
         )}
 
+        {buildingData.groundElevation !== undefined && (
+          <div className="text-xs text-gray-600">
+            ⛰️ Ground elevation: {buildingData.groundElevation.toFixed(0)}m
+          </div>
+        )}
+
         {buildingData.type && (
           <div className="text-xs text-gray-600">
             🏗️ Type: {buildingData.type}
@@ -103,11 +121,26 @@ export function BuildingTooltip({
           <div
             className={`text-xs font-medium ${getStatusColor(
               buildingData.height || 0,
-              waterLevel
+              waterLevel,
+              buildingData.groundElevation || 0
             )}`}
           >
-            💧 {getFloodStatus(buildingData.height || 0, waterLevel)}
+            💧{" "}
+            {getFloodStatus(
+              buildingData.height || 0,
+              waterLevel,
+              buildingData.groundElevation || 0
+            )}
           </div>
+          {buildingData.groundElevation !== undefined && waterLevel > 0 && (
+            <div className="text-xs text-gray-500">
+              Water depth at location:{" "}
+              {Math.max(0, waterLevel - buildingData.groundElevation).toFixed(
+                1
+              )}
+              m
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -236,6 +236,7 @@ export function MapContainer() {
     "satellite"
   );
   const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
+  const waterVisualization = useRef<WaterVisualization | null>(null);
 
   const mapCenter = useStore((state) => state.mapCenter);
   const mapZoom = useStore((state) => state.mapZoom);
@@ -332,24 +333,23 @@ export function MapContainer() {
           url: "mapbox://mapbox.mapbox-terrain-v2",
         });
 
-        // Create and add the sea level rise layer after other layers
-        // We need to ensure it's added in the right position in the layer stack
-        setTimeout(() => {
+        // Create and add the water visualization after other layers
+        setTimeout(async () => {
           if (map.current) {
             // Always show 61m (200ft) of sea level rise
             const fixedWaterLevel = 61;
             console.log(
-              "Creating SeaLevelRiseLayer with fixed water level:",
+              "Creating water visualization with fixed water level:",
               fixedWaterLevel
             );
-            seaLevelRiseLayer.current = new SeaLevelRiseLayer(fixedWaterLevel);
 
-            // Add the layer before the building layer if it exists
-            const beforeLayerId = map.current.getLayer("3d-buildings")
-              ? "3d-buildings"
-              : undefined;
-            map.current.addLayer(seaLevelRiseLayer.current, beforeLayerId);
-            console.log("SeaLevelRiseLayer added to map");
+            // Use the simpler water visualization
+            waterVisualization.current = new WaterVisualization(
+              map.current,
+              fixedWaterLevel
+            );
+            await waterVisualization.current.initialize();
+            console.log("Water visualization added to map");
           }
         }, 100);
 
@@ -536,10 +536,9 @@ export function MapContainer() {
   // Update flood visualization when water level changes
   useEffect(() => {
     if (map.current && mapLoaded) {
-      // Update the sea level rise layer
-      if (seaLevelRiseLayer.current) {
-        seaLevelRiseLayer.current.setWaterLevel(waterLevel);
-        map.current.triggerRepaint();
+      // Update the water visualization
+      if (waterVisualization.current) {
+        waterVisualization.current.setWaterLevel(waterLevel);
       }
 
       // Update the old flood areas data (temporary)

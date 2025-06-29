@@ -9,15 +9,32 @@ const vertexShaderSource = `
   varying vec2 v_texCoord;
   varying vec3 v_worldPos;
   
+  const float EXTENT = 8192.0;
+  
   void main() {
-    v_texCoord = a_position * 0.5 + 0.5; // Convert from [-1,1] to [0,1]
+    // a_position contains lng/lat coordinates
+    // Convert to texture coordinates [0,1] based on bounds
+    v_texCoord = vec2(
+      (a_position.x + 122.55) / 0.2,  // (lng - west) / (east - west)
+      (a_position.y - 37.7) / 0.15    // (lat - south) / (north - south)
+    );
     
-    // Convert normalized position to world coordinates
-    vec3 worldPos = vec3(a_position.x, a_position.y, u_waterLevel);
+    // Convert lng/lat to mercator projection used by Mapbox
+    float x = a_position.x;
+    float y = clamp(a_position.y, -85.051129, 85.051129);
+    
+    x = (x + 180.0) / 360.0;
+    y = (1.0 - log(tan(radians(y)) + 1.0 / cos(radians(y))) / 3.141592653589793) / 2.0;
+    
+    // Scale to EXTENT
+    vec2 position = vec2(x, y) * EXTENT;
+    
+    // Create world position with water level as Z
+    vec3 worldPos = vec3(position.x, position.y, u_waterLevel * 0.1); // Scale water level down
     v_worldPos = worldPos;
     
     // Transform to clip space
-    gl_Position = u_matrix * vec4(worldPos, 1.0);
+    gl_Position = u_matrix * vec4(position.x, position.y, u_waterLevel * 0.1, 1.0);
   }
 `;
 
@@ -40,12 +57,19 @@ const fragmentShaderSource = `
   }
   
   void main() {
-    // Sample terrain height at this position
-    float terrainHeight = texture2D(u_terrain, v_texCoord).r * 255.0;
+    // For debugging: always show a blue semi-transparent overlay
+    gl_FragColor = vec4(0.0, 0.5, 1.0, 0.5);
+    return;
     
-    // Discard fragments where terrain is above water
-    if (terrainHeight >= u_waterLevel) {
-      discard;
+    // Sample terrain height at this position
+    // For now, use a simple elevation model (will integrate real terrain later)
+    float terrainHeight = 0.0; // Sea level
+    
+    // Only render where water level is above terrain
+    if (u_waterLevel <= 0.0) {
+      // For debugging: show a red overlay when water level is 0
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 0.3);
+      return;
     }
     
     // Calculate water depth
@@ -108,6 +132,9 @@ export class SeaLevelRiseLayer implements mapboxgl.CustomLayerInterface {
   // Position attribute
   private aPosition: number = -1;
 
+  // Debug flag
+  private hasRendered: boolean = false;
+
   constructor(waterLevel: number = 0) {
     this.waterLevel = waterLevel;
 
@@ -119,10 +146,18 @@ export class SeaLevelRiseLayer implements mapboxgl.CustomLayerInterface {
       north: 37.85,
     };
 
-    const { vertices, indices } = this.createWaterMesh(bounds, 128);
+    const { vertices, indices } = this.createWaterMesh(bounds, 64); // Lower resolution for debugging
     this.vertices = vertices;
     this.indices = indices;
     this.vertexCount = indices.length;
+
+    console.log("SeaLevelRiseLayer created with water level:", waterLevel);
+    console.log(
+      "Vertex count:",
+      vertices.length / 2,
+      "Index count:",
+      indices.length
+    );
   }
 
   onAdd(map: mapboxgl.Map, gl: WebGLRenderingContext): void {
@@ -215,7 +250,19 @@ export class SeaLevelRiseLayer implements mapboxgl.CustomLayerInterface {
   }
 
   render(gl: WebGLRenderingContext, matrix: number[]): void {
-    if (!this.program || !this.vertexBuffer || !this.indexBuffer) return;
+    if (!this.program || !this.vertexBuffer || !this.indexBuffer) {
+      console.warn("SeaLevelRiseLayer: Missing required resources");
+      return;
+    }
+
+    // Debug: Log first render
+    if (!this.hasRendered) {
+      console.log(
+        "SeaLevelRiseLayer rendering with water level:",
+        this.waterLevel
+      );
+      this.hasRendered = true;
+    }
 
     // Use shader program
     gl.useProgram(this.program);
@@ -314,11 +361,11 @@ export class SeaLevelRiseLayer implements mapboxgl.CustomLayerInterface {
         const u = x / resolution;
         const v = y / resolution;
 
-        // Map to normalized coordinates [-1, 1]
-        const nx = u * 2 - 1;
-        const ny = v * 2 - 1;
+        // Map to geographic coordinates
+        const lng = bounds.west + (bounds.east - bounds.west) * u;
+        const lat = bounds.south + (bounds.north - bounds.south) * v;
 
-        vertices.push(nx, ny);
+        vertices.push(lng, lat);
       }
     }
 

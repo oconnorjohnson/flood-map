@@ -331,9 +331,26 @@ export function MapContainer() {
           url: "mapbox://mapbox.mapbox-terrain-v2",
         });
 
-        // Create and add the sea level rise layer
-        seaLevelRiseLayer.current = new SeaLevelRiseLayer(waterLevel);
-        map.current.addLayer(seaLevelRiseLayer.current);
+        // Create and add the sea level rise layer after other layers
+        // We need to ensure it's added in the right position in the layer stack
+        setTimeout(() => {
+          if (map.current) {
+            // Always show 61m (200ft) of sea level rise
+            const fixedWaterLevel = 61;
+            console.log(
+              "Creating SeaLevelRiseLayer with fixed water level:",
+              fixedWaterLevel
+            );
+            seaLevelRiseLayer.current = new SeaLevelRiseLayer(fixedWaterLevel);
+
+            // Add the layer before the building layer if it exists
+            const beforeLayerId = map.current.getLayer("3d-buildings")
+              ? "3d-buildings"
+              : undefined;
+            map.current.addLayer(seaLevelRiseLayer.current, beforeLayerId);
+            console.log("SeaLevelRiseLayer added to map");
+          }
+        }, 100);
 
         // Keep the old flood areas for now as a fallback/comparison
         // We can remove this once the new layer is working properly

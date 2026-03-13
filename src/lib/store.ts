@@ -21,16 +21,16 @@ interface AppState {
 
 export const useStore = create<AppState>()((set) => ({
   // Initial state
-  waterLevel: 0,
+  waterLevel: 50,
   mapCenter: [-122.4194, 37.7749], // San Francisco coordinates
-  mapZoom: 12,
+  mapZoom: 12.8,
   selectedPreset: null,
   isExporting: false,
   legendVisible: true,
 
   // Actions
   setWaterLevel: (level) =>
-    set({ waterLevel: Math.max(0, Math.min(200, level)) }),
+    set({ waterLevel: Math.max(25, Math.min(75, level)) }),
   setMapView: (center, zoom) => set({ mapCenter: center, mapZoom: zoom }),
   setSelectedPreset: (preset) => set({ selectedPreset: preset }),
   setIsExporting: (exporting) => set({ isExporting: exporting }),

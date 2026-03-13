@@ -1,578 +1,270 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useStore } from "@/lib/store";
 import { ElevationTooltip, useElevationTooltip } from "./ElevationTooltip";
 import { BuildingTooltip, useBuildingTooltip } from "./BuildingTooltip";
-// import { SeaLevelRiseLayer } from "./SeaLevelRiseLayer";
-import { WaterVisualization } from "./WaterVisualization";
-import { TerrainAwareWater } from "./TerrainAwareWater";
+import { ConnectedWaterLayer } from "./ConnectedWaterLayer";
+import { TerrainRgbModel } from "./FloodModel";
 
-// Initialize Mapbox access token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
-// Generate flood areas based on water level
-// This creates multiple polygons representing areas that would actually flood
-const generateFloodAreas = (waterLevel: number): GeoJSON.FeatureCollection => {
-  const features: GeoJSON.Feature[] = [];
-
-  if (waterLevel <= 0) {
-    return { type: "FeatureCollection", features };
-  }
-
-  // Ocean and bay entry points - these are always flooded if water level > 0
-  const waterBodies = [
-    // Pacific Ocean (west coast)
-    {
-      name: "Pacific Ocean",
-      coordinates: [
-        [
-          [-122.52, 37.9],
-          [-122.52, 37.65],
-          [-122.48, 37.65],
-          [-122.48, 37.9],
-          [-122.52, 37.9],
-        ],
-      ],
-    },
-    // San Francisco Bay (east)
-    {
-      name: "San Francisco Bay",
-      coordinates: [
-        [
-          [-122.35, 37.9],
-          [-122.3, 37.9],
-          [-122.3, 37.65],
-          [-122.35, 37.65],
-          [-122.35, 37.9],
-        ],
-      ],
-    },
-    // Golden Gate (north)
-    {
-      name: "Golden Gate",
-      coordinates: [
-        [
-          [-122.5, 37.84],
-          [-122.4, 37.84],
-          [-122.4, 37.81],
-          [-122.5, 37.81],
-          [-122.5, 37.84],
-        ],
-      ],
-    },
-  ];
-
-  // Add water bodies as base flood areas
-  for (const waterBody of waterBodies) {
-    features.push({
-      type: "Feature",
-      properties: {
-        name: waterBody.name,
-        elevation: 0,
-        waterDepth: waterLevel,
-      },
-      geometry: {
-        type: "Polygon",
-        coordinates: waterBody.coordinates,
-      },
-    });
-  }
-
-  // Low-lying areas that flood at different water levels
-  // These are connected to water sources and flood progressively
-  const floodZones = [
-    // Areas that flood at 1-5m (very low elevation, directly connected to water)
-    {
-      minWaterLevel: 1,
-      areas: [
-        {
-          name: "Mission Bay",
-          coordinates: [
-            [
-              [-122.395, 37.775],
-              [-122.385, 37.775],
-              [-122.385, 37.765],
-              [-122.395, 37.765],
-              [-122.395, 37.775],
-            ],
-          ],
-        },
-        {
-          name: "Embarcadero",
-          coordinates: [
-            [
-              [-122.4, 37.8],
-              [-122.385, 37.8],
-              [-122.385, 37.79],
-              [-122.4, 37.79],
-              [-122.4, 37.8],
-            ],
-          ],
-        },
-      ],
-    },
-    // Areas that flood at 5-10m
-    {
-      minWaterLevel: 5,
-      areas: [
-        {
-          name: "SOMA",
-          coordinates: [
-            [
-              [-122.41, 37.785],
-              [-122.395, 37.785],
-              [-122.395, 37.775],
-              [-122.41, 37.775],
-              [-122.41, 37.785],
-            ],
-          ],
-        },
-        {
-          name: "Marina District",
-          coordinates: [
-            [
-              [-122.445, 37.805],
-              [-122.43, 37.805],
-              [-122.43, 37.8],
-              [-122.445, 37.8],
-              [-122.445, 37.805],
-            ],
-          ],
-        },
-      ],
-    },
-    // Areas that flood at 10-20m
-    {
-      minWaterLevel: 10,
-      areas: [
-        {
-          name: "Financial District",
-          coordinates: [
-            [
-              [-122.405, 37.795],
-              [-122.395, 37.795],
-              [-122.395, 37.79],
-              [-122.405, 37.79],
-              [-122.405, 37.795],
-            ],
-          ],
-        },
-        {
-          name: "Fisherman's Wharf",
-          coordinates: [
-            [
-              [-122.42, 37.81],
-              [-122.41, 37.81],
-              [-122.41, 37.805],
-              [-122.42, 37.805],
-              [-122.42, 37.81],
-            ],
-          ],
-        },
-      ],
-    },
-    // Areas that flood at 20-50m
-    {
-      minWaterLevel: 20,
-      areas: [
-        {
-          name: "Mission District Lower",
-          coordinates: [
-            [
-              [-122.42, 37.765],
-              [-122.41, 37.765],
-              [-122.41, 37.755],
-              [-122.42, 37.755],
-              [-122.42, 37.765],
-            ],
-          ],
-        },
-        {
-          name: "Sunset District Coast",
-          coordinates: [
-            [
-              [-122.51, 37.76],
-              [-122.5, 37.76],
-              [-122.5, 37.75],
-              [-122.51, 37.75],
-              [-122.51, 37.76],
-            ],
-          ],
-        },
-      ],
-    },
-  ];
-
-  // Add flood zones based on water level
-  for (const zone of floodZones) {
-    if (waterLevel >= zone.minWaterLevel) {
-      for (const area of zone.areas) {
-        features.push({
-          type: "Feature",
-          properties: {
-            name: area.name,
-            elevation: zone.minWaterLevel,
-            waterDepth: waterLevel - zone.minWaterLevel,
-          },
-          geometry: {
-            type: "Polygon",
-            coordinates: area.coordinates,
-          },
-        });
-      }
-    }
-  }
-
-  return { type: "FeatureCollection", features };
-};
+function getFirstSymbolLayerId(map: mapboxgl.Map): string | undefined {
+  return map
+    .getStyle()
+    .layers?.find((layer) => layer.type === "symbol")?.id;
+}
 
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const terrainModel = useRef<TerrainRgbModel | null>(null);
+  const waterLayer = useRef<ConnectedWaterLayer | null>(null);
+  const tooltipCleanupRef = useRef<(() => void) | null>(null);
+  const initialView = useRef({
+    center: useStore.getState().mapCenter,
+    zoom: useStore.getState().mapZoom,
+  });
+  const initialWaterLevel = useRef(useStore.getState().waterLevel);
+
+  const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapStyle, setMapStyle] = useState<"satellite" | "standard">(
-    "satellite"
-  );
-  // const seaLevelRiseLayer = useRef<SeaLevelRiseLayer | null>(null);
-  const waterVisualization = useRef<WaterVisualization | null>(null);
-  const terrainWater = useRef<TerrainAwareWater | null>(null);
+  const [terrainReady, setTerrainReady] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("Loading San Francisco terrain…");
+  const [terrainError, setTerrainError] = useState<string | null>(null);
 
-  const mapCenter = useStore((state) => state.mapCenter);
-  const mapZoom = useStore((state) => state.mapZoom);
   const waterLevel = useStore((state) => state.waterLevel);
-  const setMapView = useStore((state) => state.setMapView);
 
-  // Initialize tooltip functionality
-  const { tooltip, attachTooltip } = useElevationTooltip(map.current);
+  const getElevation = useCallback((lng: number, lat: number): number | null => {
+    return terrainModel.current?.getElevation(lng, lat) ?? null;
+  }, []);
 
-  // Initialize building tooltip
-  const { buildingData } = useBuildingTooltip(map.current, waterLevel);
-
-  // Function to toggle map style
-  const toggleMapStyle = () => {
-    if (map.current) {
-      const newStyle = mapStyle === "satellite" ? "standard" : "satellite";
-      setMapStyle(newStyle);
-
-      if (newStyle === "standard") {
-        // Use MapBox Standard style with better 3D buildings
-        map.current.setStyle("mapbox://styles/mapbox/standard");
-      } else {
-        // Use satellite style
-        map.current.setStyle("mapbox://styles/mapbox/satellite-streets-v12");
-      }
-    }
-  };
+  const { tooltip, attachTooltip } = useElevationTooltip(
+    mapInstance,
+    getElevation,
+    isNavigating
+  );
+  const { buildingData } = useBuildingTooltip(mapInstance, getElevation, isNavigating);
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return; // Initialize map only once
+    if (!mapContainer.current || mapRef.current) return;
 
-    // Create the map instance with 3D capabilities
-    map.current = new mapboxgl.Map({
+    if (!mapboxgl.accessToken) {
+      setTerrainError("Missing NEXT_PUBLIC_MAPBOX_TOKEN.");
+      setStatusMessage("Mapbox token missing");
+      return;
+    }
+
+    const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style:
-        mapStyle === "standard"
-          ? "mapbox://styles/mapbox/standard"
-          : "mapbox://styles/mapbox/satellite-streets-v12",
-      center: mapCenter,
-      zoom: mapZoom,
-      pitch: 45, // Add initial 3D tilt
-      bearing: 0, // Initial rotation
-      antialias: true, // Better rendering quality
-      interactive: true,
-      dragPan: true,
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      center: initialView.current.center,
+      zoom: initialView.current.zoom,
+      pitch: 72,
+      bearing: -20,
+      antialias: true,
       dragRotate: true,
-      scrollZoom: true,
-      touchZoomRotate: true,
-      doubleClickZoom: true,
-      keyboard: true,
+      pitchWithRotate: true,
+      maxPitch: 85,
     });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    mapRef.current = map;
+    setMapInstance(map);
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-    // Initialize 3D terrain and flood visualization
-    map.current.on("style.load", () => {
-      if (map.current) {
-        const currentStyle = map.current.getStyle();
-        const isStandardStyle = currentStyle.name === "Mapbox Standard";
-
-        // Add Mapbox terrain source for 3D elevation (not needed for Standard style)
-        if (!isStandardStyle) {
-          map.current.addSource("mapbox-dem", {
-            type: "raster-dem",
-            url: "mapbox://mapbox.terrain-rgb",
-            tileSize: 512,
-            maxzoom: 14,
-          });
-
-          // Enable 3D terrain
-          map.current.setTerrain({
-            source: "mapbox-dem",
-            exaggeration: 1.0, // Use real-world scale (no exaggeration)
-          });
-        }
-
-        // Add sky layer for realistic 3D atmosphere (not needed for Standard style which has it built-in)
-        if (!isStandardStyle) {
-          map.current.addLayer({
-            id: "sky",
-            type: "sky",
-            paint: {
-              "sky-type": "atmosphere",
-              "sky-atmosphere-sun": [0.0, 0.0],
-              "sky-atmosphere-sun-intensity": 15,
-            },
-          });
-        }
-
-        // Add contour source from Mapbox Terrain tileset
-        map.current.addSource("contours", {
-          type: "vector",
-          url: "mapbox://mapbox.mapbox-terrain-v2",
+    const initializeMap = async () => {
+      try {
+        map.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.terrain-rgb",
+          tileSize: 512,
+          maxzoom: 14,
         });
 
-        // Create and add the water visualization after other layers
-        setTimeout(async () => {
-          if (map.current) {
-            // Always show 61m (200ft) of sea level rise
-            const fixedWaterLevel = 61;
-            console.log(
-              "Creating water visualization with fixed water level:",
-              fixedWaterLevel
-            );
-
-            // Use terrain-aware water visualization
-            terrainWater.current = new TerrainAwareWater(
-              map.current,
-              fixedWaterLevel
-            );
-            await terrainWater.current.initialize();
-            console.log("Terrain-aware water visualization added to map");
-          }
-        }, 100);
-
-        // Keep the old flood areas for now as a fallback/comparison
-        // We can remove this once the new layer is working properly
-        map.current.addSource("flood-areas", {
-          type: "geojson",
-          data: generateFloodAreas(waterLevel),
+        map.setTerrain({
+          source: "mapbox-dem",
+          exaggeration: 1,
         });
 
-        // Add contour lines for better elevation visualization
-        map.current.addLayer({
-          id: "contour-lines",
-          type: "line",
-          source: "contours",
-          "source-layer": "contour",
-          filter: ["==", ["get", "index"], 5], // Show every 5th contour
-          layout: {
-            "line-join": "round",
-            "line-cap": "round",
-          },
-          paint: {
-            "line-color": "#877b59",
-            "line-width": 1,
-            "line-opacity": 0.5,
-          },
+        map.setFog({
+          range: [0.8, 8],
+          color: "rgba(190, 210, 235, 0.8)",
+          "high-color": "rgba(13, 30, 56, 0.65)",
+          "space-color": "rgba(7, 12, 18, 1)",
+          "horizon-blend": 0.12,
+          "star-intensity": 0,
         });
 
-        // Add contour labels
-        map.current.addLayer({
-          id: "contour-labels",
-          type: "symbol",
-          source: "contours",
-          "source-layer": "contour",
-          filter: ["==", ["get", "index"], 5],
-          layout: {
-            "symbol-placement": "line",
-            "text-field": ["concat", ["get", "ele"], "m"],
-            "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
-            "text-size": 10,
-          },
-          paint: {
-            "text-color": "#877b59",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 1,
-          },
-        });
-
-        // Add 3D buildings layer (only for non-Standard styles)
-        if (!isStandardStyle) {
-          map.current.addLayer({
-            id: "3d-buildings",
-            source: "composite",
-            "source-layer": "building",
-            filter: ["==", "extrude", "true"],
-            type: "fill-extrusion",
-            minzoom: 15,
-            paint: {
-              "fill-extrusion-color": [
-                "case",
-                ["boolean", ["feature-state", "hover"], false],
-                "#ff6b6b", // Red when hovered
-                [
+        if (!map.getLayer("3d-buildings")) {
+          map.addLayer(
+            {
+              id: "3d-buildings",
+              source: "composite",
+              "source-layer": "building",
+              filter: ["==", "extrude", "true"],
+              type: "fill-extrusion",
+              minzoom: 13,
+              paint: {
+                "fill-extrusion-color": [
                   "interpolate",
                   ["linear"],
-                  ["get", "height"],
+                  ["coalesce", ["get", "height"], 0],
                   0,
-                  "#e1e5e9", // Light gray for short buildings
+                  "#d7dde5",
                   50,
-                  "#c8d6e5", // Medium gray for medium buildings
-                  100,
-                  "#8395a7", // Darker gray for tall buildings
-                  200,
-                  "#576574", // Dark gray for skyscrapers
+                  "#bcc8d3",
+                  150,
+                  "#7f8b99",
+                  300,
+                  "#4a5563",
                 ],
-              ],
-              "fill-extrusion-height": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                15,
-                0,
-                15.05,
-                ["get", "height"],
-              ],
-              "fill-extrusion-base": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                15,
-                0,
-                15.05,
-                ["get", "min_height"],
-              ],
-              "fill-extrusion-opacity": 0.9,
+                "fill-extrusion-height": ["coalesce", ["get", "height"], 0],
+                "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
+                "fill-extrusion-opacity": 0.96,
+                "fill-extrusion-ambient-occlusion-intensity": 0.35,
+                "fill-extrusion-vertical-gradient": true,
+              },
             },
-          });
+            getFirstSymbolLayerId(map)
+          );
         }
 
-        // Add building hover effects
-        let hoveredBuildingId: string | number | undefined = undefined;
+        const model = new TerrainRgbModel(mapboxgl.accessToken || "");
+        terrainModel.current = model;
 
-        map.current.on("mousemove", "3d-buildings", (e) => {
-          if (e.features && e.features.length > 0) {
-            if (hoveredBuildingId !== undefined) {
-              map.current?.setFeatureState(
-                {
-                  source: "composite",
-                  sourceLayer: "building",
-                  id: hoveredBuildingId,
-                } as mapboxgl.FeatureIdentifier,
-                { hover: false }
-              );
-            }
-            hoveredBuildingId = e.features[0].id;
-            map.current?.setFeatureState(
-              {
-                source: "composite",
-                sourceLayer: "building",
-                id: hoveredBuildingId,
-              } as mapboxgl.FeatureIdentifier,
-              { hover: true }
-            );
-          }
-        });
+        const layer = new ConnectedWaterLayer(
+          model.metadata.bounds,
+          initialWaterLevel.current
+        );
+        waterLayer.current = layer;
+        map.addLayer(layer, "3d-buildings");
 
-        map.current.on("mouseleave", "3d-buildings", () => {
-          if (hoveredBuildingId !== undefined) {
-            map.current?.setFeatureState(
-              {
-                source: "composite",
-                sourceLayer: "building",
-                id: hoveredBuildingId,
-              } as mapboxgl.FeatureIdentifier,
-              { hover: false }
-            );
-          }
-          hoveredBuildingId = undefined;
-        });
-
-        // Change cursor on hover
-        map.current.on("mouseenter", "3d-buildings", () => {
-          if (map.current) {
-            map.current.getCanvas().style.cursor = "pointer";
-          }
-        });
-
-        map.current.on("mouseleave", "3d-buildings", () => {
-          if (map.current) {
-            map.current.getCanvas().style.cursor = "";
-          }
-        });
-
-        // Attach tooltip after map is fully loaded
-        attachTooltip();
         setMapLoaded(true);
-      }
-    });
+        setStatusMessage("Downloading Terrain-RGB tiles…");
 
-    // Update store when map view changes (with throttling to prevent loops)
-    let updateTimeout: NodeJS.Timeout;
-    map.current.on("moveend", () => {
-      if (map.current) {
-        clearTimeout(updateTimeout);
-        updateTimeout = setTimeout(() => {
-          if (map.current) {
-            const center = map.current.getCenter();
-            const zoom = map.current.getZoom();
-            setMapView([center.lng, center.lat], zoom);
-          }
-        }, 100); // Throttle updates to prevent infinite loops
-      }
-    });
+        await model.load();
 
-    // Cleanup function
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
+        setStatusMessage("Solving ocean-connected flood extent…");
+        const mask = model.buildFloodMask(initialWaterLevel.current);
+        layer.updateMask(mask, model.metadata.width, model.metadata.height);
+
+        setTerrainReady(true);
+        setStatusMessage("Ready");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to initialize flood scene";
+        setTerrainError(message);
+        setStatusMessage("Initialization failed");
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update flood visualization when water level changes
+    map.once("load", () => {
+      void initializeMap();
+    });
+
+    return () => {
+      tooltipCleanupRef.current?.();
+      tooltipCleanupRef.current = null;
+      map.remove();
+      mapRef.current = null;
+      terrainModel.current = null;
+      waterLayer.current = null;
+      setMapInstance(null);
+    };
+  }, []);
+
   useEffect(() => {
-    if (map.current && mapLoaded) {
-      // Update the water visualization
-      if (terrainWater.current) {
-        terrainWater.current.setWaterLevel(waterLevel);
+    if (!mapInstance) return;
+
+    let navigationTimeout: number | null = null;
+
+    const handleMoveStart = () => {
+      if (navigationTimeout !== null) {
+        window.clearTimeout(navigationTimeout);
+        navigationTimeout = null;
+      }
+      setIsNavigating(true);
+    };
+
+    const handleMoveEnd = () => {
+      if (navigationTimeout !== null) {
+        window.clearTimeout(navigationTimeout);
       }
 
-      // Update the old flood areas data (temporary)
-      if (map.current.getSource("flood-areas")) {
-        const source = map.current.getSource(
-          "flood-areas"
-        ) as mapboxgl.GeoJSONSource;
-        source.setData(generateFloodAreas(waterLevel));
-      }
+      navigationTimeout = window.setTimeout(() => {
+        setIsNavigating(false);
+        navigationTimeout = null;
+      }, 120);
+    };
 
-      console.log(
-        `Updated flood visualization for water level: ${waterLevel}m`
+    mapInstance.on("movestart", handleMoveStart);
+    mapInstance.on("moveend", handleMoveEnd);
+
+    return () => {
+      mapInstance.off("movestart", handleMoveStart);
+      mapInstance.off("moveend", handleMoveEnd);
+      if (navigationTimeout !== null) {
+        window.clearTimeout(navigationTimeout);
+      }
+    };
+  }, [mapInstance]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapInstance) return;
+
+    tooltipCleanupRef.current?.();
+    tooltipCleanupRef.current = attachTooltip() ?? null;
+
+    return () => {
+      tooltipCleanupRef.current?.();
+      tooltipCleanupRef.current = null;
+    };
+  }, [attachTooltip, mapInstance, mapLoaded]);
+
+  useEffect(() => {
+    if (!terrainReady || !terrainModel.current || !waterLayer.current) return;
+
+    let cancelled = false;
+    setStatusMessage("Recomputing connected flood extent…");
+
+    const timeoutId = window.setTimeout(() => {
+      if (!terrainModel.current || !waterLayer.current || cancelled) return;
+
+      waterLayer.current.setWaterLevel(waterLevel);
+      const mask = terrainModel.current.buildFloodMask(waterLevel);
+
+      if (cancelled) return;
+
+      waterLayer.current.updateMask(
+        mask,
+        terrainModel.current.metadata.width,
+        terrainModel.current.metadata.height
       );
-    }
-  }, [waterLevel, mapLoaded]);
+      setStatusMessage("Ready");
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [terrainReady, waterLevel]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full" />
+    <div className="relative h-full w-full">
+      <div ref={mapContainer} className="h-full w-full" />
 
-      {/* Style toggle button */}
-      <button
-        onClick={toggleMapStyle}
-        className="absolute top-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow z-10"
-        title="Toggle between satellite and standard map styles"
-      >
-        {mapStyle === "satellite" ? "🏙️ Standard View" : "🛰️ Satellite View"}
-      </button>
+      <div className="pointer-events-none absolute left-4 top-[22rem] z-10">
+        <div className="rounded-lg bg-black/55 px-3 py-2 text-sm text-white backdrop-blur-sm shadow-lg">
+          <div className="font-medium">3D ocean-connected flood view</div>
+          <div className="text-white/80">{statusMessage}</div>
+          {terrainError && <div className="text-red-300">{terrainError}</div>}
+        </div>
+      </div>
 
-      {mapLoaded && (
-        <ElevationTooltip tooltip={tooltip} waterLevel={waterLevel} />
-      )}
+      {mapLoaded && <ElevationTooltip tooltip={tooltip} waterLevel={waterLevel} />}
       <BuildingTooltip buildingData={buildingData} waterLevel={waterLevel} />
     </div>
   );

@@ -86,8 +86,7 @@ export function sampleElevation(
   terrainData: Uint8Array,
   bounds: { x: number; y: number; width: number; height: number },
   imageWidth: number,
-  imageHeight: number,
-  samples: number = 4
+  imageHeight: number
 ): number {
   let totalElevation = 0;
   let sampleCount = 0;
